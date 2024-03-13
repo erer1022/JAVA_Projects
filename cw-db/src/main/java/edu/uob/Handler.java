@@ -51,15 +51,6 @@ public class Handler {
         return input.split(" ");
     }
 
-    public void createDatabase(String databaseName){
-        if (databases.containsKey(databaseName)){
-            throw new IllegalStateException("Database already exists.");
-        } else {
-            Database newDatabase = new Database(databaseName);
-            databases.put(databaseName.toLowerCase(), newDatabase);
-            System.out.println("[OK]");
-        }
-    }
 
     public void useDatabase(String databaseName) {
         if (databases.containsKey(databaseName.toLowerCase())){
@@ -70,24 +61,25 @@ public class Handler {
         }
     }
 
-    public void createTable(String tableName, List<String> columns){
+    public void createDatabase(String databaseName){
+        if (databases.containsKey(databaseName)){
+            throw new IllegalStateException("Database already exists.");
+        } else {
+            Database newDatabase = new Database(databaseName.toLowerCase());
+            databases.put(databaseName.toLowerCase(), newDatabase);
+            System.out.println("[OK]");
+        }
+    }
+
+    public void createTable(String tableName, List<String> columnNames){
         if (currentDatabase != null) {
-            Table newTable = new Table(tableName.toLowerCase(), columns);
+            Table newTable = new Table(tableName.toLowerCase(), columnNames);
             currentDatabase.addTable(newTable);
             System.out.println("[OK]");
         } else {
             System.out.println("No database selected.");
         }
     }
-
-    public void dropTable(String tableName) {
-        if (this.currentDatabase != null) {
-            this.currentDatabase.dropTable(tableName);
-        } else {
-            System.out.println("No database selected.");
-        }
-    }
-
     public void dropDatabase(String databaseName) {
         if (databases.containsKey(databaseName.toLowerCase())) {
             databases.remove(databaseName.toLowerCase());
@@ -97,16 +89,20 @@ public class Handler {
         }
     }
 
-
-
-
+    public void dropTable(String tableName) {
+        if (this.currentDatabase != null) {
+            this.currentDatabase.dropTable(tableName.toLowerCase());
+        } else {
+            System.out.println("No database selected.");
+        }
+    }
 
 
     public void insertInto(String tableName, List<String> values){
         if (currentDatabase != null) {
             Table table = currentDatabase.getTable(tableName);
             if (table != null){
-                table.addRow(values);
+                table.insertRow(values);
                 System.out.println("[OK]");
             } else {
                 System.out.println("Table '" + tableName + "' does not exist.");
@@ -116,11 +112,25 @@ public class Handler {
         }
     }
 
-    public void selectFrom(String tableName) {
+    public void selectFrom(String tableName, List<String> columnNames, ArrayList<String> whereClause) {
         if (currentDatabase != null){
             Table table = currentDatabase.getTable(tableName);
             if (table != null) {
-                table.printRows();
+                List<Row> rowsToPrint;
+
+                if (whereClause != null && !whereClause.isEmpty()) {
+                    rowsToPrint = table.selectRowsWithCondition(whereClause);
+                } else {
+                    rowsToPrint = table.getRows(); // If there is no where clause, select all rows
+                }
+
+                if (columnNames.contains("*")) {
+                    //Print all columns for the selected rows
+                    table.printSelectedRows(rowsToPrint, table.getColumnNames());
+                } else {
+                    //Print only specified columns for the selected rows
+                    table.printSelectedRows(rowsToPrint, columnNames);
+                }
             } else {
                 System.out.println("Table '" + tableName + "' does not exist.");
             }
@@ -128,6 +138,38 @@ public class Handler {
             System.out.println("No database selected.");
         }
     }
+
+    public void updateTable(String tableName, ArrayList<String> setClause, ArrayList<String> whereClause) {
+        if (currentDatabase != null) {
+            Table table = currentDatabase.getTable(tableName);
+            if (table != null) {
+                table.updateRowsWithCondition(setClause, whereClause);
+            } else {
+                System.err.println("Table '" + tableName + "' does not exist in the current database.");
+            }
+        } else {
+            System.err.println("No current database is selected.");
+        }
+    }
+
+    public void deleteFrom(String tableName, ArrayList<String> whereClause) {
+        if (currentDatabase != null) {
+            Table table = currentDatabase.getTable(tableName);
+            if (table != null) {
+                table.deleteRowsWithCondition(whereClause);
+            } else {
+                System.err.println("Table '" + tableName + "' does not exist in the current database.");
+            }
+        } else {
+            System.err.println("No current database is selected.");
+        }
+    }
+
+    /* TODO:
+    public void joinTables(String firstTableName, String secondTableName, String firstAttributeName, String secondAttributeName) {
+
+
+    }*/
 
 }
 

@@ -2,19 +2,13 @@ package edu.uob;
 
 public class Column {
     private String name;
-    private Class<?> type;  /* needs to handle data of various types */
 
-    public Column(String name, Class<?> type) {
+    public Column(String name) {
         this.name = name;
-        this.type = type;
     }
 
-
-    public String getColumnName(){
+    public String getName(){
         return name;
     }
 
-    public Class<?> getType(){
-        return type;
-    }
 }

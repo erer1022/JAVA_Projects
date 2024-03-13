@@ -6,11 +6,11 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
-import java.lang.reflect.Array;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.file.Paths;
 import java.nio.file.Files;
+import java.sql.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -50,6 +50,9 @@ public class DBServer {
         // TODO implement your server logic here
         Handler handler = new Handler();
         ArrayList<String> tokens = handler.preprocessQuery(command);
+        String tableName;
+        ArrayList<String> whereClause;
+
         switch (tokens.get(0).toUpperCase()){
 
             /* "USE " [DatabaseName] */
@@ -59,7 +62,8 @@ public class DBServer {
 
             /* <Create>          ::=  <CreateDatabase> | <CreateTable>
                <CreateDatabase>  ::=  "CREATE " "DATABASE " [DatabaseName]
-               <CreateTable>     ::=  "CREATE " "TABLE " [TableName] | "CREATE " "TABLE " [TableName] "(" <AttributeList> ")" */
+               <CreateTable>     ::=  "CREATE " "TABLE " [TableName] | "CREATE " "TABLE " [TableName] "(" <AttributeList> ")"
+               [AttributeName] | [AttributeName] "," <AttributeList> */
             case "CREATE":
                 //Create DATABASE
                 if (tokens.get(1).equalsIgnoreCase("DATABASE") && tokens.size() == 3) {
@@ -67,8 +71,8 @@ public class DBServer {
                 }
                 //CREATE TABLE
                 else if (tokens.get(1).equalsIgnoreCase("TABLE")) {
-                    String tableName = tokens.get(2);
-                    List<String> columns = new ArrayList<>();
+                    tableName = tokens.get(2);
+                    List<String> columns = new ArrayList<>();  //To store the columns' name
                     if (tokens.size() > 3 && tokens.get(3).equals("(")) {
                         for (int i = 4; !tokens.get(i).equals(")"); i++) {
                             columns.add(tokens.get(i).replaceAll(",", ""));
@@ -87,41 +91,30 @@ public class DBServer {
                 }
                 break;
 
-            /* "ALTER " "TABLE " [TableName] " " <AlterationType> " " [AttributeName]
-               <AlterationType>  ::=  "ADD" | "DROP" */
-            case "ALTER":
-                if (tokens.get(1).equalsIgnoreCase("TABLE") && tokens.get(2).equalsIgnoreCase("ADD")) {
-                    String tableName = tokens.get(2);
-                    String columnName = tokens.get(4);
-                    handler.alterTableAddColumn(tableName, columnName);
-                } else if (tokens.get(1).equalsIgnoreCase("TABLE") && tokens.get(2).equalsIgnoreCase("DROP")) {
-                    String tableName = tokens.get(2);
-                    String columnName = tokens.get(4);
-                    handler.alterTableDropColumn(tableName, columnName);
-                }
-                break;
 
             /* "INSERT " "INTO " [TableName] " VALUES" "(" <ValueList> ")" */
             case "INSERT":
                 if (tokens.get(1).equalsIgnoreCase("INTO") && tokens.size() > 3) {
-                    String tableName = tokens.get(2);
+                    tableName = tokens.get(2);
                     List<String> values = extractValuesFromInsert(tokens);
                     handler.insertInto(tableName, values);
                 }
                 break;
 
-            /* "SELECT " <WildAttribList> " FROM " [TableName] | "SELECT " <WildAttribList> " FROM " [TableName] " WHERE " <Condition> */
+            /* "SELECT " <WildAttribList> " FROM " [TableName]
+             | "SELECT " <WildAttribList> " FROM " [TableName] " WHERE " <Condition> */
             case "SELECT":
-                String tableName = extractTableNameFromSelect(tokens);
-                List<String> columns = extractColumnsFromSelect(tokens);
-                String whereClause = extractWhereClause(tokens);
-                handler.selectFrom(tableName, columns, whereClause);
+                tableName = extractTableNameFromSelect(tokens);
+                List<String> columnNames = extractColumnsFromSelect(tokens);
+                whereClause = extractWhereClause(tokens);
+                handler.selectFrom(tableName, columnNames, whereClause);
                 break;
+
 
             /* "UPDATE " [TableName] " SET " <NameValueList> " WHERE " <Condition>  */
             case "UPDATE":
                 tableName = tokens.get(1);
-                String setClause = extractSetClauseFromUpdate(tokens);
+                ArrayList<String> setClause = extractSetClauseFromUpdate(tokens);
                 whereClause = extractWhereClause(tokens);
                 handler.updateTable(tableName, setClause, whereClause);
                 break;
@@ -136,12 +129,27 @@ public class DBServer {
                 break;
 
             /* "JOIN " [TableName] " AND " [TableName] " ON " [AttributeName] " AND " [AttributeName] */
-            case "JOIN":
+            /*case "JOIN": TODO:
                 String firstTable = tokens.get(1);
                 String secondTable = tokens.get(3);
-                String joinOn = tokens.get(5);
-                handler.joinTables(firstTable, secondTable, joinOn);
-                break;
+                String firstAttributeName = tokens.get(5);
+                String secondAttributeName = tokens.get(7);
+                handler.joinTables(firstTable, secondTable, firstAttributeName, secondAttributeName);
+                break; */
+
+                /* "ALTER " "TABLE " [TableName] " " <AlterationType> " " [AttributeName]
+               <AlterationType>  ::=  "ADD" | "DROP" */
+            /*case "ALTER": TODO:
+                if (tokens.get(1).equalsIgnoreCase("TABLE") && tokens.get(2).equalsIgnoreCase("ADD")) {
+                    tableName = tokens.get(2);
+                    String columnName = tokens.get(4);
+                    handler.alterTableAddColumn(tableName, columnName);
+                } else if (tokens.get(1).equalsIgnoreCase("TABLE") && tokens.get(2).equalsIgnoreCase("DROP")) {
+                    tableName = tokens.get(2);
+                    String columnName = tokens.get(4);
+                    handler.alterTableDropColumn(tableName, columnName);
+                }
+                break;*/
 
         }
         return "";
@@ -154,9 +162,11 @@ public class DBServer {
         // Extract the subList containing the values, split by comma
         List<String> valueTokens = tokens.subList(startIndex, endIndex);
         // Further processing may be needed if values contain commas, for example in strings
-        return parseValues(valueTokens);
+        return valueTokens;
     }
 
+    /* "SELECT " <WildAttribList> " FROM " [TableName]
+     | "SELECT " <WildAttribList> " FROM " [TableName] " WHERE " <Condition> */
     private String extractTableNameFromSelect(ArrayList<String> tokens) {
         // Assuming the token following "FROM" is always the table name
         int fromIndex = tokens.indexOf("FROM");
@@ -177,13 +187,20 @@ public class DBServer {
         // Join tokens to handle columns like "table.column" and split by comma
         String columnsCombined = String.join(" ", tokens.subList(selectIndex, fromIndex));
         String[] columns = columnsCombined.split(",");
-        // Trim whitespace and return as a list
-        return Arrays.stream(columns).map(String::trim).collect(Collectors.toList());
+
+        // Create a new list for trimmed column names
+        List<String> trimmedColumns = new ArrayList<>();
+        for (String column : columns) {
+            trimmedColumns.add(column.trim());
+        }
+
+        return trimmedColumns;
     }
+
 
     /* <NameValueList>   ::=  <NameValuePair> | <NameValuePair> "," <NameValueList>
        <NameValuePair>   ::=  [AttributeName] "=" [Value] */
-    private String extractSetClauseFromUpdate(ArrayList<String> tokens) {
+    private ArrayList<String> extractSetClauseFromUpdate(ArrayList<String> tokens) {
         // Find the indexes for "SET" and "WHERE" (if it exists)
         int setIndex = tokens.indexOf("SET") + 1;
         int whereIndex = tokens.indexOf("WHERE");
@@ -196,20 +213,27 @@ public class DBServer {
         // Join tokens to handle set clauses like "column = value" and split by comma
         String setCombined = String.join(" ", tokens.subList(setIndex, endIndex));
         String[] sets = setCombined.split(",");
-        // Trim whitespace and return as a single string
-        return Arrays.stream(sets).map(String::trim).collect(Collectors.joining(", "));
+        // Trim whitespace and add to ArrayList
+        ArrayList<String> setClauses = new ArrayList<>();
+        for (String set : sets) {
+            setClauses.add(set.trim());
+        }
+        return setClauses;
     }
 
-    /* " WHERE " <Condition> */
-    private String extractWhereClause(ArrayList<String> tokens) {
+    /* " WHERE " <Condition>
+     * <Condition>       ::=  "(" <Condition> <BoolOperator> <Condition> ")" | <Condition> <BoolOperator> <Condition> | "(" [AttributeName] <Comparator> [Value] ")" | [AttributeName] <Comparator> [Value]
+       <BoolOperator>    ::= "AND" | "OR"
+       <Comparator>      ::=  "==" | ">" | "<" | ">=" | "<=" | "!=" | " LIKE " */
+    private ArrayList<String> extractWhereClause(ArrayList<String> tokens) {
         // Check if the WHERE clause exists
         int whereIndex = tokens.indexOf("WHERE");
         if (whereIndex == -1) {
             // No WHERE clause present
-            return "";
+            return new ArrayList<>();
         }
         // Assuming WHERE clause is the last part of the query
-        return String.join(" ", tokens.subList(whereIndex + 1, tokens.size()));
+        return new ArrayList<>(tokens.subList(whereIndex + 1, tokens.size()));
     }
 
 
