@@ -1,6 +1,0 @@
-WHEN start reading data
-   every newline, instantiate a new row
-   parse the read-in string, if(edu.uob.Column(string.at())) not exist,
-   instantiate a new edu.uob.Column,
-   check its data type
-   --> row.setValue(column name, data value)

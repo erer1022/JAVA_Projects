@@ -1,9 +1,7 @@
 package edu.uob;
 
-import com.beust.ah.A;
-
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Stack;
 
 public class LogicalExpression implements Expression{

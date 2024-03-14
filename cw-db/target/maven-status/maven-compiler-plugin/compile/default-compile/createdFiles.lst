@@ -1,2 +1,10 @@
-edu/uob/DBClient.class
+edu/uob/Expression.class
 edu/uob/DBServer.class
+edu/uob/Column.class
+edu/uob/Database.class
+edu/uob/Row.class
+edu/uob/DBClient.class
+edu/uob/LogicalExpression.class
+edu/uob/Table.class
+edu/uob/Condition.class
+edu/uob/Handler.class

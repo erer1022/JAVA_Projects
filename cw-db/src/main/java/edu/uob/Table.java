@@ -1,7 +1,8 @@
 package edu.uob;
 
-import java.lang.reflect.Array;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
 public class Table {
     private String name;

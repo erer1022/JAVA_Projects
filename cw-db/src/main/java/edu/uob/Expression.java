@@ -1,5 +1,5 @@
 package edu.uob;
 
 public interface Expression {
-    public boolean evaluate(Row row);
+    boolean evaluate(Row row);
 }

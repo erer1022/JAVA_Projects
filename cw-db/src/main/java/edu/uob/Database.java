@@ -1,7 +1,6 @@
 package edu.uob;
 
 import java.util.HashMap;
-import java.util.List;
 
 public class Database {
     private String name;

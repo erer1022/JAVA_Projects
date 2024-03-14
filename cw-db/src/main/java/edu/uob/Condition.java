@@ -1,8 +1,5 @@
 package edu.uob;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class Condition implements Expression {
     String attributeName;
     String operator;
