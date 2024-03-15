@@ -7,10 +7,9 @@ public class Database {
     private HashMap<String, Table> tables;
 
     public Database(String name){
-        this.name = name.toLowerCase();
+        this.name = name;
         tables = new HashMap<>();
     }
-
 
 
     public void addTable(Table table){

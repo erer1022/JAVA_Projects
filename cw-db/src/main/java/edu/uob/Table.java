@@ -1,37 +1,49 @@
 package edu.uob;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
 public class Table {
     private String name;
+    private Path tablePath;
     private List<Column> columns;
     private List<Row> rows;
     private int nextRowId;
 
-    public Table(String name, List<String> columnNames) {
+    public Table(String name, Path tablePath, List<String> columnNames) {
         this.name = name.toLowerCase();  // Convert to lowercase for case insensitivity
+        this.tablePath = tablePath;
         this.columns = new ArrayList<>();
         this.rows = new ArrayList<>();
         this.nextRowId = 1;  //Initialize the ID
+
         for (String columnName : columnNames) {
             this.columns.add(new Column(columnName));
         }
     }
 
-    public void insertRow(List<String> values) {
-        if (values.size() != columns.size()){
-            System.out.println("Invalid number of values.");
-            return;
-        }
-        List<String> columnNames = this.getColumnNames();
-        rows.add(new Row(nextRowId++, columnNames, values));
-    }
-
     public String getName() {
         return name;
     }
+
+    public void createTableFile() throws IOException {
+        columns.add(0, new Column("id\t"));
+
+        StringBuilder columnHeaders = new StringBuilder();
+        for (Column column : columns) {
+            columnHeaders.append(column.getName());
+            columnHeaders.append("\t");
+        }
+        // Write the Column headers to the .tab file
+        Files.writeString(tablePath, columnHeaders, StandardOpenOption.CREATE_NEW);
+    }
+
+
     public List<String> getColumnNames(){
         List<String> columnNames = new ArrayList<>();
         for (Column column : columns) {
@@ -40,10 +52,31 @@ public class Table {
         return columnNames;
     }
 
+
+    public void insertRow(List<String> values) throws IOException {
+        //Write to the .tab file
+        String currentIdAsString = String.valueOf(nextRowId);
+        values.add(0, currentIdAsString + "\t");
+        StringBuilder insertRow = new StringBuilder();
+        for (String value : values) {
+            insertRow.append(value);
+            insertRow.append("\t");
+        }
+
+        String fileContent = Files.readString(tablePath);
+        String newContent = fileContent + System.lineSeparator() + insertRow;
+        Files.writeString(tablePath, newContent, StandardOpenOption.TRUNCATE_EXISTING);
+
+        //Add to the Data structure
+        List<String> columnNames = this.getColumnNames();
+        Row row = new Row(nextRowId, columnNames, values);
+        rows.add(row);
+        nextRowId++;
+    }
+
     public List<Row> getRows(){
         return rows;
     }
-
     public List<Row> selectRowsWithCondition(ArrayList<String> whereClause) {
         LogicalExpression conditions = LogicalExpression.parseConditions(whereClause);
         List<Row> filteredRows = new ArrayList<>();
@@ -52,19 +85,27 @@ public class Table {
                 filteredRows.add(row);
             }
         }
-        return filteredRows ;
+        return filteredRows;
     }
 
-    public void printSelectedRows(List<Row> rows, List<String> columnNames) {
+    public String returnSelectedRows(List<Row> rows, List<String> columnNames) {
+        StringBuilder result = new StringBuilder();
+
+        for (String columnName : columnNames) {
+            result.append(columnName).append(" ");
+        }
+        result.append("\n");
+
         for (Row row : rows) {
             for (String columnName : columnNames) {
                 int columnIndex = getColumnIndex(columnName);
                 if (columnIndex != -1) {
-                    System.out.print(row.getValue(columnName) + " ");
+                    result.append(row.getValue(columnName)).append(" ");
                 }
             }
+            result.append("\n"); // Move to the next line after processing a row
         }
-        System.out.println(); // Move to the next line after printing a row
+        return result.toString();
     }
 
     private int getColumnIndex(String columnName) {
@@ -76,14 +117,14 @@ public class Table {
         return -1;
     }
 
-    public void updateRowsWithCondition(ArrayList<String> setClause, ArrayList<String> whereClause) {
+    /*public void updateRowsWithCondition(ArrayList<String> setClause, ArrayList<String> whereClause) {
         List<Row> rowsToUpdate = selectRowsWithCondition(whereClause);
 
         for (Row row : rowsToUpdate) {
             for (int i = 0; i < setClause.size(); i += 4) {
                 /* <NameValueList>   ::=  <NameValuePair> | <NameValuePair> "," <NameValueList>
                    <NameValuePair>   ::=  [AttributeName] "=" [Value] */
-                String columnName = setClause.get(i);
+                /*String columnName = setClause.get(i);
                 String value = setClause.get(i + 2);
                 row.updateValue(columnName, value);
             }
