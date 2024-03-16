@@ -54,6 +54,9 @@ DBServer {
         String tableName;
         ArrayList<String> whereClause;
 
+        if (!";".equals(tokens.get(tokens.size() - 1))) {
+            return "[ERROR]: Semi colon missing at end of line";
+        }
 
         switch (tokens.get(0).toUpperCase()){
 
@@ -124,13 +127,13 @@ DBServer {
                 break;
 
             /* "JOIN " [TableName] " AND " [TableName] " ON " [AttributeName] " AND " [AttributeName] */
-            /*case "JOIN": TODO:
+            /*case "JOIN":
                 String firstTable = tokens.get(1);
                 String secondTable = tokens.get(3);
                 String firstAttributeName = tokens.get(5);
                 String secondAttributeName = tokens.get(7);
-                handler.joinTables(firstTable, secondTable, firstAttributeName, secondAttributeName);
-                break; */
+                return joinTables(firstTable, secondTable, firstAttributeName, secondAttributeName);
+                break;*/
 
                 /* "ALTER " "TABLE " [TableName] " " <AlterationType> " " [AttributeName]
                <AlterationType>  ::=  "ADD" | "DROP" */
@@ -185,7 +188,7 @@ DBServer {
 
 
     public String createDatabase(String databaseName) throws IOException {
-        Path newDatabasePath = Paths.get(storageFolderPath, databaseName);
+        Path newDatabasePath = Paths.get(storageFolderPath, databaseName.toLowerCase());
         if (Files.exists(newDatabasePath)){
             return "[ERROR]: Database '" + databaseName + "' already exists.";
         } else {
@@ -213,14 +216,14 @@ DBServer {
     }
 
     public String createTable(String tableName, List<String> columnNames) throws IOException {
-        Path tablePath = getTablePath(tableName);
+        Path tablePath = getTablePath(tableName.toLowerCase());
 
         // Check if the table has already exist
         if (Files.exists(tablePath)) {
             return "[ERROR]: Table '" + tableName + "' already exists.";
         }
 
-        Table table = new Table(tableName, tablePath, columnNames);
+        Table table = new Table(tableName.toLowerCase(), tablePath, columnNames);
         currentDatabase.addTable(table);
         table.updateTableFile();
         return "[OK]";
@@ -447,4 +450,15 @@ DBServer {
             return "[ERROR]: No current database is selected.";
         }
     }
+
+    /*public String joinTables(String firstTableName, String secondTableName, String firstAttribute, String SecondAttribute) {
+        if (currentDatabase != null) {
+            Table firstTable = currentDatabase.getTable(firstTableName);
+            Table secondTable = currentDatabase.getTable(secondTableName);
+
+            List<String> firstColumnNames = firstTable.getColumnNames();
+
+            Table joinTable = new Table(joinTable, getTablePath(joinTable),
+        }
+    }*/
 }
