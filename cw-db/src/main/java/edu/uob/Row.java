@@ -12,25 +12,34 @@ public class Row {
         this.id = id;
         valuesMap.put("id", Integer.toString(id));
 
-        for (int i = 0; i <attributeNames.size(); i++) {
-            if (i < values.size()) {
-                valuesMap.put(attributeNames.get(i), values.get(i));
+        for (int i = 1; i <attributeNames.size(); i++) {
+            if (i <= values.size()) {
+                valuesMap.put(attributeNames.get(i), values.get(i-1));
             } else {
                 valuesMap.put(attributeNames.get(i), null);
             }
         }
     }
 
-    public int getId() {
-        return id;
+    public String getId() {
+        return Integer.toString(id);
     }
 
     public String getValue(String attributeName) {
-        return valuesMap.get(attributeName);
+        if (valuesMap.get(attributeName) != null) {
+            return valuesMap.get(attributeName);
+        } else {
+            return "";
+        }
+
     }
 
     public void updateValue(String attributeName, String value) {
         valuesMap.put(attributeName, value);
+    }
+
+    public void dropValue(String attributeName) {
+        valuesMap.remove(attributeName);
     }
 
 }

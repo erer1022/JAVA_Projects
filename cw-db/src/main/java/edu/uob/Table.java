@@ -1,6 +1,8 @@
 package edu.uob;
 
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -32,16 +34,6 @@ public class Table {
         return name;
     }
 
-    public void createTableFile() throws IOException {
-        StringBuilder columnHeaders = new StringBuilder();
-        for (Column column : columns) {
-            columnHeaders.append(column.getName());
-            columnHeaders.append("\t");
-        }
-        // Write the Column headers to the .tab file
-        Files.writeString(tablePath, columnHeaders, StandardOpenOption.CREATE_NEW);
-    }
-
 
     public List<String> getColumnNames(){
         List<String> columnNames = new ArrayList<>();
@@ -51,27 +43,85 @@ public class Table {
         return columnNames;
     }
 
+    public void addColumn(String columnName) {
+        // Check if the column already exists
+        for (Column column : columns) {
+            if (column.getName().equalsIgnoreCase(columnName)) {
+                throw new IllegalArgumentException("Column " + columnName + " already exists.");
+            }
+        }
+        columns.add(new Column(columnName));
+    }
+
+    public void dropColumn(String columnName) {
+        // Find the column to remove
+        Column toRemove = null;
+        for (Column column : columns) {
+            if (column.getName().equalsIgnoreCase(columnName)) {
+                toRemove = column;
+                break;
+            }
+        }
+        // If column exists, remove it
+        if (toRemove != null) {
+            columns.remove(toRemove);
+            for (Row row : rows) {
+                row.dropValue(columnName);
+            }
+        } else {
+            throw new IllegalArgumentException("Column " + columnName + " does not exist.");
+        }
+    }
+
 
     public void insertRow(List<String> values) throws IOException {
-        //Write to the .tab file
-        String currentIdAsString = String.valueOf(nextRowId);
-        values.add(0, currentIdAsString);
-        StringBuilder insertRow = new StringBuilder();
-        for (String value : values) {
-            insertRow.append(value);
-            insertRow.append("\t");
-        }
-
-        String fileContent = Files.readString(tablePath);
-        String newContent = fileContent + System.lineSeparator() + insertRow;
-        Files.writeString(tablePath, newContent, StandardOpenOption.TRUNCATE_EXISTING);
-
         //Add to the Data structure
         List<String> columnNames = this.getColumnNames();
         Row row = new Row(nextRowId, columnNames, values);
         rows.add(row);
         nextRowId++;
     }
+
+    public void updateTableFile() throws IOException {
+        try (BufferedWriter writer = Files.newBufferedWriter(tablePath, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
+            // Write column headers
+            for (Column column : columns) {
+                writer.write(column.getName() + whitespace(column.getName()));
+
+            }
+            writer.newLine(); // End the line for column headers
+
+            // Write rows
+            if (rows != null) {
+                for (Row row : rows) {
+                    for (Column column : columns) {
+                        writer.write(row.getValue(column.getName()) + whitespace(row.getValue(column.getName())));
+                    }
+                    writer.newLine(); // End the line for each row
+                }
+            }
+        } // Try-with-resources ensures that the writer is closed properly, even if an exception is thrown
+    }
+
+    private String whitespace(String value) {
+        StringBuilder whitespace = new StringBuilder();
+        int length = value.length();
+        while(length < 8) {
+            whitespace.append(" ");
+            length++;
+        }
+        return whitespace.toString();
+    }
+
+    public void deleteTableFile() {
+        try {
+            Files.deleteIfExists(tablePath);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+
 
     public List<Row> getRows(){
         return rows;
@@ -92,7 +142,7 @@ public class Table {
         StringBuilder result = new StringBuilder();
 
         for (String columnName : columnNames) {
-            result.append(columnName).append("\t");
+            result.append(columnName).append(whitespace(columnName));
         }
         result.append("\n");
 
@@ -100,7 +150,7 @@ public class Table {
             for (String columnName : columnNames) {
                 int columnIndex = getColumnIndex(columnName);
                 if (columnIndex != -1) {
-                    result.append(row.getValue(columnName)).append("\t");
+                    result.append(row.getValue(columnName)).append(whitespace(row.getValue(columnName)));
                 }
             }
             result.append("\n"); // Move to the next line after processing a row
@@ -117,14 +167,15 @@ public class Table {
         return -1;
     }
 
-    /*public void updateRowsWithCondition(ArrayList<String> setClause, ArrayList<String> whereClause) {
+    public void updateRowsWithCondition(ArrayList<String> setClause, ArrayList<String> whereClause) {
         List<Row> rowsToUpdate = selectRowsWithCondition(whereClause);
 
         for (Row row : rowsToUpdate) {
             for (int i = 0; i < setClause.size(); i += 4) {
                 /* <NameValueList>   ::=  <NameValuePair> | <NameValuePair> "," <NameValueList>
                    <NameValuePair>   ::=  [AttributeName] "=" [Value] */
-                /*String columnName = setClause.get(i);
+
+                String columnName = setClause.get(i);
                 String value = setClause.get(i + 2);
                 row.updateValue(columnName, value);
             }

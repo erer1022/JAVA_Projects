@@ -20,6 +20,7 @@ public class LogicalExpression implements Expression{
     @Override
     public boolean evaluate(Row row) {
         boolean result = "OR".equals(operator) ? false : true;
+
         for (Expression expr : expressions) {
             boolean exprResult;
             if (expr instanceof Condition) {
@@ -44,8 +45,6 @@ public class LogicalExpression implements Expression{
     /*  (pass == FALSE) AND (mark > 35); */
 
     public static LogicalExpression parseConditions(ArrayList<String> tokens) {
-
-
         Stack<Expression> stack = new Stack<>();
         // Create an initial LogicalExpression with a neutral operator like "AND".
         LogicalExpression currentExpression = new LogicalExpression("AND");

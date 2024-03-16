@@ -62,6 +62,7 @@ public class ExampleDBTests {
         String response = sendCommandToServer("SELECT id FROM marks WHERE name == 'Simon';");
         // Convert multi-lined responses into just a single line
         String singleLine = response.replace("\n"," ").trim();
+
         // Split the line on the space character
         String[] tokens = singleLine.split(" ");
         // Check that the very last token is a number (which should be the ID of the entry)
@@ -101,6 +102,74 @@ public class ExampleDBTests {
         String response = sendCommandToServer("SELECT * FROM libraryfines;");
         assertTrue(response.contains("[ERROR]"), "An attempt was made to access a non-existent table, however an [ERROR] tag was not returned");
         assertFalse(response.contains("[OK]"), "An attempt was made to access a non-existent table, however an [OK] tag was returned");
+    }
+
+    @Test
+    public void testFromScript() {
+        sendCommandToServer("CREATE DATABASE markbook"  + ";");
+        sendCommandToServer("USE " + "markbook" + ";");
+        sendCommandToServer("CREATE TABLE marks (name, mark, pass);");
+        sendCommandToServer("INSERT INTO marks VALUES ('Simon', 65, TRUE);");
+        sendCommandToServer("INSERT INTO marks VALUES ('Sion', 55, TRUE);");
+        sendCommandToServer("INSERT INTO marks VALUES ('Rob', 35, FALSE);");
+        sendCommandToServer("INSERT INTO marks VALUES ('Chris', 20, FALSE);");
+
+        String response3 = sendCommandToServer("DELETE FROM marks WHERE name == 'Sion';");
+
+        String response2 = sendCommandToServer("SELECT * FROM marks;");
+        System.out.println(response2);
+
+    }
+
+    @Test
+    public void testDROP() {
+        String response = sendCommandToServer("CREATE DATABASE database1;");
+        System.out.println(response);
+        sendCommandToServer("USE database1;");
+        sendCommandToServer("CREATE TABLE data1 (name, mark, pass);");
+        sendCommandToServer("CREATE TABLE data2 (name, mark, pass);");
+
+        String response2 = sendCommandToServer("DROP TABLE data2;");
+        System.out.println(response2);
+        String response3 = sendCommandToServer("DROP DATABASE database1;");
+        System.out.println(response3);
+    }
+
+    @Test
+    public void testUPDATE() {
+        sendCommandToServer("CREATE DATABASE markbook"  + ";");
+        sendCommandToServer("USE " + "markbook" + ";");
+        sendCommandToServer("CREATE TABLE marks (name, mark, pass);");
+        sendCommandToServer("INSERT INTO marks VALUES ('Simon', 65, TRUE);");
+        sendCommandToServer("INSERT INTO marks VALUES ('Sion', 55, TRUE);");
+        String response = sendCommandToServer("UPDATE marks SET mark = 35, pass = FALSE WHERE name == 'Simon';");
+        System.out.println(response);
+    }
+
+    @Test
+    public void testALTER() {
+        sendCommandToServer("CREATE DATABASE markbook"  + ";");
+        sendCommandToServer("USE " + "markbook" + ";");
+        sendCommandToServer("CREATE TABLE marks (name, mark, pass);");
+        sendCommandToServer("INSERT INTO marks VALUES ('Simon', 65, TRUE);");
+        sendCommandToServer("INSERT INTO marks VALUES ('Sion', 55, TRUE);");
+        String response = sendCommandToServer("ALTER TABLE marks ADD age;");
+        System.out.println(response);
+
+        String response1 = sendCommandToServer("SELECT * FROM marks;");
+        System.out.println(response1);
+
+        String response2 = sendCommandToServer("UPDATE marks SET age = 35 WHERE name == 'Simon'");
+        System.out.println(response2);
+
+        String response3 = sendCommandToServer("SELECT * FROM marks;");
+        System.out.println(response3);
+
+        String response4 = sendCommandToServer("ALTER TABLE marks DROP pass;");
+        System.out.println(response4);
+
+        String response5 = sendCommandToServer("SELECT * FROM marks;");
+        System.out.println(response5);
     }
 
 }

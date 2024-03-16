@@ -12,7 +12,7 @@ import java.util.List;
 
 public class Handler {
 
-    String[] specialCharacters = {"(",")",",",";"};
+    String[] specialCharacters = {"(",")",",",";","<",">"};
     ArrayList<String> tokens = new ArrayList<String>();
 
     public ArrayList<String> preprocessQuery(String query)

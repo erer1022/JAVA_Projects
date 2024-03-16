@@ -29,9 +29,7 @@ public class Database {
         tableName = tableName.toLowerCase();
         if (tables.containsKey(tableName)) {
             tables.remove(tableName);
-            System.out.println("Table " + tableName + " dropped successfully.");
         } else {
-            System.out.println("Table " + tableName + " does not exist.");
         }
     }
 }

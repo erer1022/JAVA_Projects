@@ -3,9 +3,7 @@ package edu.uob;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.Files;
+import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -82,11 +80,11 @@ DBServer {
                 break;
 
             /* "DROP " "DATABASE " [DatabaseName] | "DROP " "TABLE " [TableName] */
-            /*case "DROP":
-                if (tokens.get(1).equalsIgnoreCase("DATABASE") && tokens.size() == 3) {
-                    handler.dropDatabase(tokens.get(2));
-                } else if (tokens.get(1).equalsIgnoreCase("TABLE") && tokens.size() == 3) {
-                    handler.dropTable(tokens.get(2));
+            case "DROP":
+                if (tokens.get(1).equalsIgnoreCase("DATABASE") && tokens.size() == 4) {
+                    return dropDatabase(tokens.get(2));
+                } else if (tokens.get(1).equalsIgnoreCase("TABLE") && tokens.size() == 4) {
+                    return dropTable(tokens.get(2));
                 }
                 break;
 
@@ -110,19 +108,18 @@ DBServer {
 
 
             /* "UPDATE " [TableName] " SET " <NameValueList> " WHERE " <Condition>  */
-            /*case "UPDATE":
+            case "UPDATE":
                 tableName = tokens.get(1);
                 ArrayList<String> setClause = extractSetClauseFromUpdate(tokens);
                 whereClause = extractWhereClause(tokens);
-                handler.updateTable(tableName, setClause, whereClause);
-                break;
+                return updateTable(tableName, setClause, whereClause);
 
             /* "DELETE " "FROM " [TableName] " WHERE " <Condition>*/
-            /*case "DELETE":
+            case "DELETE":
                 if (tokens.get(1).equalsIgnoreCase("FROM")) {
                     tableName = tokens.get(2);
                     whereClause = extractWhereClause(tokens);
-                    handler.deleteFrom(tableName, whereClause);
+                    return deleteFrom(tableName, whereClause);
                 }
                 break;
 
@@ -137,18 +134,17 @@ DBServer {
 
                 /* "ALTER " "TABLE " [TableName] " " <AlterationType> " " [AttributeName]
                <AlterationType>  ::=  "ADD" | "DROP" */
-            /*case "ALTER": TODO:
-                if (tokens.get(1).equalsIgnoreCase("TABLE") && tokens.get(2).equalsIgnoreCase("ADD")) {
+            case "ALTER":
+                if (tokens.get(1).equalsIgnoreCase("TABLE") && tokens.get(3).equalsIgnoreCase("ADD")) {
                     tableName = tokens.get(2);
                     String columnName = tokens.get(4);
-                    handler.alterTableAddColumn(tableName, columnName);
-                } else if (tokens.get(1).equalsIgnoreCase("TABLE") && tokens.get(2).equalsIgnoreCase("DROP")) {
+                    return alterTableAddColumn(tableName, columnName);
+                } else if (tokens.get(1).equalsIgnoreCase("TABLE") && tokens.get(3).equalsIgnoreCase("DROP")) {
                     tableName = tokens.get(2);
                     String columnName = tokens.get(4);
-                    handler.alterTableDropColumn(tableName, columnName);
+                    return alterTableDropColumn(tableName, columnName);
                 }
-                break;*/
-
+                break;
         }
         return "[ERROR]: Unrecognized command.";
     }
@@ -226,7 +222,7 @@ DBServer {
 
         Table table = new Table(tableName, tablePath, columnNames);
         currentDatabase.addTable(table);
-        table.createTableFile();
+        table.updateTableFile();
         return "[OK]";
     }
 
@@ -237,6 +233,7 @@ DBServer {
 
             if (table != null){
                 table.insertRow(values);
+                table.updateTableFile();
                 return "[OK]";
             } else {
                 return "[ERROR]: Table '" + tableName + "' not exists.";
@@ -336,14 +333,8 @@ DBServer {
         // Otherwise, it goes to the end of the query
         int endIndex = (whereIndex != -1) ? whereIndex : tokens.size();
         // Join tokens to handle set clauses like "column = value" and split by comma
-        String setCombined = String.join(" ", tokens.subList(setIndex, endIndex));
-        String[] sets = setCombined.split(",");
-        // Trim whitespace and add to ArrayList
-        ArrayList<String> setClauses = new ArrayList<>();
-        for (String set : sets) {
-            setClauses.add(set.trim());
-        }
-        return setClauses;
+        return new ArrayList<>(tokens.subList(setIndex, endIndex));
+
     }
 
     /* " WHERE " <Condition>
@@ -359,5 +350,101 @@ DBServer {
         }
         // Assuming WHERE clause is the last part of the query
         return new ArrayList<>(tokens.subList(whereIndex + 1, tokens.size()));
+    }
+
+    public String deleteFrom(String tableName, ArrayList<String> whereClause) throws IOException {
+        if (currentDatabase != null) {
+            Table table = currentDatabase.getTable(tableName);
+            if (table != null) {
+                table.deleteRowsWithCondition(whereClause);
+                table.updateTableFile();
+                return "[OK]";
+            } else {
+                return "[ERROR]: Table '" + tableName + "' does not exist in the current database.";
+            }
+        } else {
+            return "[ERROR]: No current database is selected.";
+        }
+    }
+
+    public String dropDatabase(String databaseName) throws IOException {
+        Path databasePath = Paths.get(storageFolderPath, databaseName);
+        if (databases.containsKey(databaseName.toLowerCase())) {
+            deleteDirectoryRecursively(databasePath); // Recursively delete all files and the directory
+            databases.remove(databaseName.toLowerCase());
+            return "[OK]";
+        } else {
+            return "[ERROR]: Database " + databaseName + " does not exist.";
+        }
+    }
+
+    private void deleteDirectoryRecursively(Path path) throws IOException {
+        if (Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)) {
+            try (DirectoryStream<Path> entries = Files.newDirectoryStream(path)) {
+                for (Path entry : entries) {
+                    deleteDirectoryRecursively(entry); // Recursively delete directory entries
+                }
+            }
+        }
+        Files.deleteIfExists(path); // Delete the directory (now empty) or the file
+    }
+
+    public String dropTable(String tableName) {
+        if (this.currentDatabase != null) {
+            if (currentDatabase.getTable(tableName) != null) {
+                currentDatabase.getTable(tableName).deleteTableFile();
+                currentDatabase.dropTable(tableName.toLowerCase());
+                return "[OK]";
+            } else {
+                return "[ERROR]: Table " + tableName + " does not exist.";
+            }
+        } else {
+            return "[ERROR]: No database selected.";
+        }
+    }
+
+    public String updateTable(String tableName, ArrayList<String> setClause, ArrayList<String> whereClause) throws IOException {
+        if (currentDatabase != null) {
+            Table table = currentDatabase.getTable(tableName);
+            if (table != null) {
+                table.updateRowsWithCondition(setClause, whereClause);
+                table.updateTableFile();
+                return "[OK]";
+            } else {
+                return "[ERROR]: Table '" + tableName + "' does not exist in the current database.";
+            }
+        } else {
+            return "[ERROR]: No current database is selected.";
+        }
+    }
+
+    public String alterTableAddColumn(String tableName, String columnName) throws IOException {
+        if (currentDatabase != null) {
+            Table table = currentDatabase.getTable(tableName);
+            if (table != null) {
+                table.addColumn(columnName);
+                table.updateTableFile();
+                return "[OK]";
+            } else {
+                return "[ERROR]: Table '" + tableName + "' does not exist in the current database.";
+            }
+        } else {
+            return "[ERROR]: No current database is selected.";
+        }
+    }
+
+    public String alterTableDropColumn(String tableName, String columnName) throws IOException {
+        if (currentDatabase != null) {
+            Table table = currentDatabase.getTable(tableName);
+            if (table != null) {
+                table.dropColumn(columnName);
+                table.updateTableFile();
+                return "[OK]";
+            } else {
+                return "[ERROR]: Table '" + tableName + "' does not exist in the current database.";
+            }
+        } else {
+            return "[ERROR]: No current database is selected.";
+        }
     }
 }
