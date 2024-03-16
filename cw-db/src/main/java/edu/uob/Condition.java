@@ -8,7 +8,7 @@ public class Condition implements Expression {
     public Condition(String attributeName, String operator, String value) {
         this.attributeName = attributeName;
         this.operator = operator;
-        this.value = value;
+        this.value = value.replace("'", "");
     }
 
 

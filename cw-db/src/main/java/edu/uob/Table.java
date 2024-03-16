@@ -22,6 +22,7 @@ public class Table {
         this.rows = new ArrayList<>();
         this.nextRowId = 1;  //Initialize the ID
 
+        columns.add(new Column("id"));
         for (String columnName : columnNames) {
             this.columns.add(new Column(columnName));
         }
@@ -32,8 +33,6 @@ public class Table {
     }
 
     public void createTableFile() throws IOException {
-        columns.add(0, new Column("id\t"));
-
         StringBuilder columnHeaders = new StringBuilder();
         for (Column column : columns) {
             columnHeaders.append(column.getName());
@@ -56,7 +55,7 @@ public class Table {
     public void insertRow(List<String> values) throws IOException {
         //Write to the .tab file
         String currentIdAsString = String.valueOf(nextRowId);
-        values.add(0, currentIdAsString + "\t");
+        values.add(0, currentIdAsString);
         StringBuilder insertRow = new StringBuilder();
         for (String value : values) {
             insertRow.append(value);
@@ -79,6 +78,7 @@ public class Table {
     }
     public List<Row> selectRowsWithCondition(ArrayList<String> whereClause) {
         LogicalExpression conditions = LogicalExpression.parseConditions(whereClause);
+
         List<Row> filteredRows = new ArrayList<>();
         for (Row row : rows) {
             if (conditions.evaluate(row)) {
@@ -92,7 +92,7 @@ public class Table {
         StringBuilder result = new StringBuilder();
 
         for (String columnName : columnNames) {
-            result.append(columnName).append(" ");
+            result.append(columnName).append("\t");
         }
         result.append("\n");
 
@@ -100,7 +100,7 @@ public class Table {
             for (String columnName : columnNames) {
                 int columnIndex = getColumnIndex(columnName);
                 if (columnIndex != -1) {
-                    result.append(row.getValue(columnName)).append(" ");
+                    result.append(row.getValue(columnName)).append("\t");
                 }
             }
             result.append("\n"); // Move to the next line after processing a row

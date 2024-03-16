@@ -1,11 +1,6 @@
 package edu.uob;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.file.Path;
@@ -15,6 +10,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+
 /** This class implements the DB server. */
 public class
 
@@ -22,7 +18,7 @@ DBServer {
 
     private static final char END_OF_TRANSMISSION = 4;
     private String storageFolderPath;
-    private HashMap<String, Database> databases = new HashMap<>();
+    private HashMap<String, Database> databases;
     private Database currentDatabase;
     private Path currentDatabasePath;
 
@@ -37,6 +33,7 @@ DBServer {
     public DBServer() {
         storageFolderPath = Paths.get("databases").toAbsolutePath().toString();
         currentDatabasePath = null;
+        databases = new HashMap<>();
 
         try {
             // Create the database storage folder if it doesn't already exist !
@@ -190,6 +187,7 @@ DBServer {
         }
     }
 
+
     public String createDatabase(String databaseName) throws IOException {
         Path newDatabasePath = Paths.get(storageFolderPath, databaseName);
         if (Files.exists(newDatabasePath)){
@@ -203,9 +201,10 @@ DBServer {
     }
 
     public String useDatabase(String databaseName) {
-        Path newDatabasePath = Paths.get(storageFolderPath, databaseName);
-        if (Files.exists(newDatabasePath)){
-            this.currentDatabasePath = newDatabasePath;
+        Path DatabasePath = Paths.get(storageFolderPath, databaseName);
+
+        if (Files.exists(DatabasePath)){
+            this.currentDatabasePath = DatabasePath;
             this.currentDatabase = databases.get(databaseName.toLowerCase());
             return "[OK]";
         } else {
@@ -261,7 +260,6 @@ DBServer {
 
                 if (columnNames.contains("*")) {
                     //Print all columns for the selected rows
-                    System.out.println(table.returnSelectedRows(rowsToPrint, table.getColumnNames()));
                     return "[OK]" + "\n" + table.returnSelectedRows(rowsToPrint, table.getColumnNames());
                 } else {
                     //Print only specified columns for the selected rows
@@ -283,9 +281,11 @@ DBServer {
         List<String> valueTokens = tokens.subList(startIndex, endIndex);
         List<String> cleanedTokens = new ArrayList<>();
 
+
         for (String token : valueTokens) {
-            String cleanedToken = token.replace("'", "").replace(",","").trim();
+            String cleanedToken = token.replace("'", "");
             cleanedTokens.add(cleanedToken);
+            cleanedTokens.remove(",");
         }
         // Further processing may be needed if values contain commas, for example in strings
         return cleanedTokens;
@@ -319,7 +319,6 @@ DBServer {
         for (String column : columns) {
             trimmedColumns.add(column.trim());
         }
-
         return trimmedColumns;
     }
 

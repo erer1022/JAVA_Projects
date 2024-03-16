@@ -10,6 +10,8 @@ public class Row {
 
     public Row(int id, List<String> attributeNames, List<String> values) {
         this.id = id;
+        valuesMap.put("id", Integer.toString(id));
+
         for (int i = 0; i <attributeNames.size(); i++) {
             if (i < values.size()) {
                 valuesMap.put(attributeNames.get(i), values.get(i));

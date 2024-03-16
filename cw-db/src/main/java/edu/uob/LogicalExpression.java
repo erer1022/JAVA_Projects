@@ -42,7 +42,10 @@ public class LogicalExpression implements Expression{
        <Comparator>      ::=  "==" | ">" | "<" | ">=" | "<=" | "!=" | " LIKE " */
 
     /*  (pass == FALSE) AND (mark > 35); */
+
     public static LogicalExpression parseConditions(ArrayList<String> tokens) {
+
+
         Stack<Expression> stack = new Stack<>();
         // Create an initial LogicalExpression with a neutral operator like "AND".
         LogicalExpression currentExpression = new LogicalExpression("AND");
