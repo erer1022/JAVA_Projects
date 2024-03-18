@@ -19,6 +19,7 @@ DBServer {
     private HashMap<String, Database> databases;
     private Database currentDatabase;
     private Path currentDatabasePath;
+    private ReservedWordsDetector reservedWordsDetector;
 
     public static void main(String args[]) throws IOException {
         DBServer server = new DBServer();
@@ -32,6 +33,7 @@ DBServer {
         storageFolderPath = Paths.get("databases").toAbsolutePath().toString();
         currentDatabasePath = null;
         databases = new HashMap<>();
+        reservedWordsDetector = new ReservedWordsDetector();
 
         try {
             // Create the database storage folder if it doesn't already exist !
@@ -127,13 +129,12 @@ DBServer {
                 break;
 
             /* "JOIN " [TableName] " AND " [TableName] " ON " [AttributeName] " AND " [AttributeName] */
-            /*case "JOIN":
+            case "JOIN":
                 String firstTable = tokens.get(1);
                 String secondTable = tokens.get(3);
                 String firstAttributeName = tokens.get(5);
                 String secondAttributeName = tokens.get(7);
                 return joinTables(firstTable, secondTable, firstAttributeName, secondAttributeName);
-                break;*/
 
                 /* "ALTER " "TABLE " [TableName] " " <AlterationType> " " [AttributeName]
                <AlterationType>  ::=  "ADD" | "DROP" */
@@ -188,6 +189,10 @@ DBServer {
 
 
     public String createDatabase(String databaseName) throws IOException {
+        if (reservedWordsDetector.isReservedWord(databaseName)) {
+            return "[ERROR]: Invalid database name";
+        }
+
         Path newDatabasePath = Paths.get(storageFolderPath, databaseName.toLowerCase());
         if (Files.exists(newDatabasePath)){
             return "[ERROR]: Database '" + databaseName + "' already exists.";
@@ -203,8 +208,16 @@ DBServer {
         Path DatabasePath = Paths.get(storageFolderPath, databaseName);
 
         if (Files.exists(DatabasePath)){
-            this.currentDatabasePath = DatabasePath;
-            this.currentDatabase = databases.get(databaseName.toLowerCase());
+            currentDatabasePath = DatabasePath;
+            currentDatabase = databases.get(databaseName.toLowerCase());
+
+            /* the DBServer is restart */
+            if (currentDatabase == null) {
+                currentDatabase = new Database(databaseName.toLowerCase());
+                databases.put(databaseName.toLowerCase(), currentDatabase);
+                currentDatabase.loadDatabase(databaseName);
+            }
+
             return "[OK]";
         } else {
             return "[ERROR]: Database '" + databaseName + "' does not exist.";
@@ -212,18 +225,22 @@ DBServer {
     }
 
     private Path getTablePath(String tableName) {
-        return this.currentDatabasePath.resolve(tableName.toLowerCase() + ".tab");
+        return currentDatabasePath.resolve(tableName.toLowerCase() + ".tab");
     }
 
     public String createTable(String tableName, List<String> columnNames) throws IOException {
-        Path tablePath = getTablePath(tableName.toLowerCase());
+        if (reservedWordsDetector.isReservedWord(tableName)) {
+            return "[ERROR]: Invalid database name";
+        }
 
+        Path tablePath = getTablePath(tableName.toLowerCase());
         // Check if the table has already exist
         if (Files.exists(tablePath)) {
             return "[ERROR]: Table '" + tableName + "' already exists.";
         }
 
-        Table table = new Table(tableName.toLowerCase(), tablePath, columnNames);
+        Table table = new Table(tableName.toLowerCase(), columnNames);
+        table.tablePath = tablePath;
         currentDatabase.addTable(table);
         table.updateTableFile();
         return "[OK]";
@@ -232,7 +249,6 @@ DBServer {
     public String insertInto(String tableName, List<String> values) throws IOException {
         if (currentDatabase != null) {
             Table table = currentDatabase.getTable(tableName);
-
 
             if (table != null){
                 table.insertRow(values);
@@ -262,6 +278,11 @@ DBServer {
                     //Print all columns for the selected rows
                     return "[OK]" + "\n" + table.returnSelectedRows(rowsToPrint, table.getColumnNames());
                 } else {
+                    for (String queryAttribute : columnNames) {
+                        if (!table.getColumnNames().contains(queryAttribute)) {
+                            return "[ERROR]: Attribute does not exist ";
+                        }
+                    }
                     //Print only specified columns for the selected rows
                     return "[OK]" + "\n" + table.returnSelectedRows(rowsToPrint, columnNames);
                 }
@@ -283,6 +304,11 @@ DBServer {
 
 
         for (String token : valueTokens) {
+            /* Detect reserved words */
+            if (reservedWordsDetector.isReservedWord(token)) {
+                cleanedTokens.add("[ERROR]: Using reserved words for token");
+                return cleanedTokens;
+            }
             String cleanedToken = token.replace("'", "");
             cleanedTokens.add(cleanedToken);
             cleanedTokens.remove(",");
@@ -298,7 +324,7 @@ DBServer {
         int fromIndex = tokens.indexOf("FROM");
         // Handle the case where "FROM" is not found or is the last word without following table name
         if (fromIndex < 0 || fromIndex + 1 >= tokens.size()) {
-            throw new IllegalStateException("Malformed SELECT query: 'FROM' clause is missing or incomplete.");
+            return "[ERROR]: Attribute does not exist";
         }
         return tokens.get(fromIndex + 1);
     }
@@ -329,15 +355,15 @@ DBServer {
         // Find the indexes for "SET" and "WHERE" (if it exists)
         int setIndex = tokens.indexOf("SET") + 1;
         int whereIndex = tokens.indexOf("WHERE");
+
         if (whereIndex != -1 && setIndex >= whereIndex) {
-            throw new IllegalStateException("Malformed UPDATE query: SET clause is missing or incomplete.");
+            List<String> setClause = new ArrayList<>();
+            setClause.add("[ERROR]: SET clause is missing or incomplete.");
         }
         // If there is a WHERE clause, the SET clause ends just before it
         // Otherwise, it goes to the end of the query
         int endIndex = (whereIndex != -1) ? whereIndex : tokens.size();
-        // Join tokens to handle set clauses like "column = value" and split by comma
         return new ArrayList<>(tokens.subList(setIndex, endIndex));
-
     }
 
     /* " WHERE " <Condition>
@@ -425,6 +451,10 @@ DBServer {
         if (currentDatabase != null) {
             Table table = currentDatabase.getTable(tableName);
             if (table != null) {
+                /* Detect if the Column name is reserved word */
+                if (reservedWordsDetector.isReservedWord(columnName)) {
+                    return "[ERROR]: Using reserved word for columnName";
+                }
                 table.addColumn(columnName);
                 table.updateTableFile();
                 return "[OK]";
@@ -440,6 +470,11 @@ DBServer {
         if (currentDatabase != null) {
             Table table = currentDatabase.getTable(tableName);
             if (table != null) {
+                /* Detect if the table contains the column to be dropped */
+                if (!table.getColumnNames().contains(columnName)) {
+                    return "[ERROR]: Column does not exist ";
+                }
+
                 table.dropColumn(columnName);
                 table.updateTableFile();
                 return "[OK]";
@@ -451,14 +486,60 @@ DBServer {
         }
     }
 
-    /*public String joinTables(String firstTableName, String secondTableName, String firstAttribute, String SecondAttribute) {
+    public String joinTables(String firstTableName, String secondTableName, String firstAttribute, String secondAttribute) throws IOException {
         if (currentDatabase != null) {
             Table firstTable = currentDatabase.getTable(firstTableName);
             Table secondTable = currentDatabase.getTable(secondTableName);
-
             List<String> firstColumnNames = firstTable.getColumnNames();
+            /* discard the ids from the original tables */
+            firstColumnNames.remove("id");
+            /* discard the columns that the tables were matched on */
+            firstColumnNames.remove(firstAttribute);
 
-            Table joinTable = new Table(joinTable, getTablePath(joinTable),
+            List<String> secondColumnNames = secondTable.getColumnNames();
+            secondColumnNames.remove("id");
+            secondColumnNames.remove(secondAttribute);
+
+            List<String> columnNames = new ArrayList<>();
+            columnNames.add("id");
+            for (String firstColumnName : firstColumnNames){
+                StringBuilder columnBuilder = new StringBuilder();
+                /* attribute names are prepended with name of table from which they originated */
+                columnBuilder.append(firstTableName).append(".").append(firstColumnName);
+                columnNames.add(columnBuilder.toString());
+            }
+            for (String secondColumnName : secondColumnNames){
+                StringBuilder columnBuilder = new StringBuilder();
+                columnBuilder.append(secondTableName).append(".").append(secondColumnName);
+                columnNames.add(columnBuilder.toString());
+            }
+
+            Table joinTable = new Table("joinTable", columnNames);
+
+            int rowSize = firstTable.nextRowId - 1;
+
+            for (int i = 0; i < rowSize; i++) {
+                List<String> rowValues = new ArrayList<>();
+                /* create a new unique id for each of row of the table produced */
+                rowValues.add(Integer.toString(joinTable.nextRowId));
+                /* First Table's row value keeps the same */
+                for (String firstColumn : firstColumnNames) {
+                    rowValues.add(firstTable.rows.get(i).getValue(firstColumn));
+                }
+                /* According to foreign key, find the row */
+                for (Row secondTableRow : secondTable.getRows())
+                    if (firstTable.rows.get(i).getValue(firstAttribute).equals(secondTableRow.getValue(secondAttribute))) {
+                        for (String secondColumn : secondColumnNames) {
+                            rowValues.add(secondTableRow.getValue(secondColumn));
+                    }
+
+                }
+                joinTable.insertRow(rowValues);
+            }
+            return "[OK]\n" + joinTable.returnSelectedRows(joinTable.getRows(), columnNames);
+
+        } else {
+            return "[ERROR]: No current database is selected.";
         }
-    }*/
+    }
 }

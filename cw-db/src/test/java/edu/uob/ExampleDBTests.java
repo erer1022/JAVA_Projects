@@ -87,8 +87,7 @@ public class ExampleDBTests {
         sendCommandToServer("USE " + randomName + ";");
         String response = sendCommandToServer("SELECT * FROM marks;");
         System.out.println(response);
-
-        //assertTrue(response.contains("Simon"), "Simon was added to a table and the server restarted - but Simon was not returned by SELECT *");
+        assertTrue(response.contains("Simon"), "Simon was added to a table and the server restarted - but Simon was not returned by SELECT *");
     }
 
     // Test to make sure that the [ERROR] tag is returned in the case of an error (and NOT the [OK] tag)
@@ -171,5 +170,39 @@ public class ExampleDBTests {
         String response5 = sendCommandToServer("SELECT * FROM marks;");
         System.out.println(response5);
     }
+
+    @Test
+    public void testJOIN() {
+        String randomName = generateRandomName();
+        sendCommandToServer("CREATE DATABASE " + randomName + ";");
+        sendCommandToServer("USE " + randomName + ";");
+        sendCommandToServer("CREATE TABLE marks (name, mark, pass);");
+        sendCommandToServer("INSERT INTO marks VALUES ('Simon', 65, TRUE);");
+        sendCommandToServer("INSERT INTO marks VALUES ('Sion', 55, TRUE);");
+        sendCommandToServer("INSERT INTO marks VALUES ('Rob', 35, FALSE);");
+        sendCommandToServer("INSERT INTO marks VALUES ('Chris', 20, FALSE);");
+        String response = sendCommandToServer("SELECT * FROM marks;");
+        System.out.println(response);
+
+        sendCommandToServer("CREATE TABLE coursework (task, submission);");
+        sendCommandToServer("INSERT INTO coursework VALUES (OXO, 3);");
+        sendCommandToServer("INSERT INTO coursework VALUES (DB, 1);");
+        sendCommandToServer("INSERT INTO coursework VALUES (OXO, 4);");
+        sendCommandToServer("INSERT INTO coursework VALUES (STAG, 2);");
+        String response2 = sendCommandToServer("SELECT * FROM coursework;");
+        System.out.println(response2);
+
+        String response3 = sendCommandToServer("JOIN coursework AND marks ON submission AND id;");
+        System.out.println(response3);
+        String response4 = sendCommandToServer("JOIN marks AND coursework ON id AND submission;");
+        System.out.println(response4);
+    }
+
+    @Test
+    public void loadDatabse(){
+        Database test = new Database("aqfpjasann");
+        test.loadDatabase("aqfpjasann");
+    }
+
 
 }
