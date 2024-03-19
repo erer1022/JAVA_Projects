@@ -130,10 +130,10 @@ DBServer {
 
             /* "JOIN " [TableName] " AND " [TableName] " ON " [AttributeName] " AND " [AttributeName] */
             case "JOIN":
-                String firstTable = tokens.get(1);
-                String secondTable = tokens.get(3);
-                String firstAttributeName = tokens.get(5);
-                String secondAttributeName = tokens.get(7);
+                String firstTable = tokens.get(1).toLowerCase();
+                String secondTable = tokens.get(3).toLowerCase();
+                String firstAttributeName = tokens.get(5).toLowerCase();
+                String secondAttributeName = tokens.get(7).toLowerCase();
                 return joinTables(firstTable, secondTable, firstAttributeName, secondAttributeName);
 
                 /* "ALTER " "TABLE " [TableName] " " <AlterationType> " " [AttributeName]
