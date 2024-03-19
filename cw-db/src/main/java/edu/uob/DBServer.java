@@ -19,7 +19,8 @@ DBServer {
     private HashMap<String, Database> databases;
     private Database currentDatabase;
     private Path currentDatabasePath;
-    private ReservedWordsDetector reservedWordsDetector;
+    private ReservedWordsDetector reservedWordsDetector= new ReservedWordsDetector();
+
 
     public static void main(String args[]) throws IOException {
         DBServer server = new DBServer();
@@ -33,7 +34,6 @@ DBServer {
         storageFolderPath = Paths.get("databases").toAbsolutePath().toString();
         currentDatabasePath = null;
         databases = new HashMap<>();
-        reservedWordsDetector = new ReservedWordsDetector();
 
         try {
             // Create the database storage folder if it doesn't already exist !
@@ -79,7 +79,7 @@ DBServer {
                 //CREATE TABLE
                 else if (tokens.get(1).equalsIgnoreCase("TABLE")) {
                     tableName = tokens.get(2);
-                    List<String> columns = extractValuesFromParenthesis(tokens);
+                    List<String> columns = handler.extractValuesFromParenthesis(tokens);
                     return createTable(tableName, columns);
                 }
                 break;
@@ -98,7 +98,7 @@ DBServer {
             case "INSERT":
                 if (tokens.get(1).equalsIgnoreCase("INTO") && tokens.size() > 3) {
                     tableName = tokens.get(2);
-                    List<String> values = extractValuesFromParenthesis(tokens);
+                    List<String> values = handler.extractValuesFromParenthesis(tokens);
                     return insertInto(tableName, values);
                 }
                 break;
@@ -106,24 +106,24 @@ DBServer {
             /* "SELECT " <WildAttribList> " FROM " [TableName]
              | "SELECT " <WildAttribList> " FROM " [TableName] " WHERE " <Condition> */
             case "SELECT":
-                tableName = extractTableNameFromSelect(tokens);
-                List<String> columnNames = extractColumnsFromSelect(tokens);
-                whereClause = extractWhereClause(tokens);
+                tableName = handler.extractTableNameFromSelect(tokens);
+                List<String> columnNames = handler.extractColumnsFromSelect(tokens);
+                whereClause = handler.extractWhereClause(tokens);
                 return selectFrom(tableName, columnNames, whereClause);
 
 
             /* "UPDATE " [TableName] " SET " <NameValueList> " WHERE " <Condition>  */
             case "UPDATE":
                 tableName = tokens.get(1);
-                ArrayList<String> setClause = extractSetClauseFromUpdate(tokens);
-                whereClause = extractWhereClause(tokens);
+                ArrayList<String> setClause = handler.extractSetClauseFromUpdate(tokens);
+                whereClause = handler.extractWhereClause(tokens);
                 return updateTable(tableName, setClause, whereClause);
 
             /* "DELETE " "FROM " [TableName] " WHERE " <Condition>*/
             case "DELETE":
                 if (tokens.get(1).equalsIgnoreCase("FROM")) {
                     tableName = tokens.get(2);
-                    whereClause = extractWhereClause(tokens);
+                    whereClause = handler.extractWhereClause(tokens);
                     return deleteFrom(tableName, whereClause);
                 }
                 break;
@@ -294,92 +294,8 @@ DBServer {
         }
     }
 
-    private List<String> extractValuesFromParenthesis(ArrayList<String> tokens) {
-        // Find the opening parenthesis to start of value list
-        int startIndex = tokens.indexOf("(") + 1;
-        int endIndex = tokens.indexOf(")");
-        // Extract the subList containing the values, split by comma
-        List<String> valueTokens = tokens.subList(startIndex, endIndex);
-        List<String> cleanedTokens = new ArrayList<>();
 
 
-        for (String token : valueTokens) {
-            /* Detect reserved words */
-            if (reservedWordsDetector.isReservedWord(token)) {
-                cleanedTokens.add("[ERROR]: Using reserved words for token");
-                return cleanedTokens;
-            }
-            String cleanedToken = token.replace("'", "");
-            cleanedTokens.add(cleanedToken);
-            cleanedTokens.remove(",");
-        }
-        // Further processing may be needed if values contain commas, for example in strings
-        return cleanedTokens;
-    }
-
-    /* "SELECT " <WildAttribList> " FROM " [TableName]
-     | "SELECT " <WildAttribList> " FROM " [TableName] " WHERE " <Condition> */
-    private String extractTableNameFromSelect(ArrayList<String> tokens) {
-        // Assuming the token following "FROM" is always the table name
-        int fromIndex = tokens.indexOf("FROM");
-        // Handle the case where "FROM" is not found or is the last word without following table name
-        if (fromIndex < 0 || fromIndex + 1 >= tokens.size()) {
-            return "[ERROR]: Attribute does not exist";
-        }
-        return tokens.get(fromIndex + 1);
-    }
-
-    private List<String> extractColumnsFromSelect(ArrayList<String> tokens) {
-        // Assuming the columns are listed after "SELECT" and before "FROM"
-        int selectIndex = tokens.indexOf("SELECT") + 1;
-        int fromIndex = tokens.indexOf("FROM");
-        if (fromIndex < 0 || selectIndex >= fromIndex) {
-            throw new IllegalStateException("Malformed SELECT query: Columns section is missing or incomplete.");
-        }
-        // Join tokens to handle columns like "table.column" and split by comma
-        String columnsCombined = String.join(" ", tokens.subList(selectIndex, fromIndex));
-        String[] columns = columnsCombined.split(",");
-
-        // Create a new list for trimmed column names
-        List<String> trimmedColumns = new ArrayList<>();
-        for (String column : columns) {
-            trimmedColumns.add(column.trim());
-        }
-        return trimmedColumns;
-    }
-
-
-    /* <NameValueList>   ::=  <NameValuePair> | <NameValuePair> "," <NameValueList>
-       <NameValuePair>   ::=  [AttributeName] "=" [Value] */
-    private ArrayList<String> extractSetClauseFromUpdate(ArrayList<String> tokens) {
-        // Find the indexes for "SET" and "WHERE" (if it exists)
-        int setIndex = tokens.indexOf("SET") + 1;
-        int whereIndex = tokens.indexOf("WHERE");
-
-        if (whereIndex != -1 && setIndex >= whereIndex) {
-            List<String> setClause = new ArrayList<>();
-            setClause.add("[ERROR]: SET clause is missing or incomplete.");
-        }
-        // If there is a WHERE clause, the SET clause ends just before it
-        // Otherwise, it goes to the end of the query
-        int endIndex = (whereIndex != -1) ? whereIndex : tokens.size();
-        return new ArrayList<>(tokens.subList(setIndex, endIndex));
-    }
-
-    /* " WHERE " <Condition>
-     * <Condition>       ::=  "(" <Condition> <BoolOperator> <Condition> ")" | <Condition> <BoolOperator> <Condition> | "(" [AttributeName] <Comparator> [Value] ")" | [AttributeName] <Comparator> [Value]
-       <BoolOperator>    ::= "AND" | "OR"
-       <Comparator>      ::=  "==" | ">" | "<" | ">=" | "<=" | "!=" | " LIKE " */
-    private ArrayList<String> extractWhereClause(ArrayList<String> tokens) {
-        // Check if the WHERE clause exists
-        int whereIndex = tokens.indexOf("WHERE");
-        if (whereIndex == -1) {
-            // No WHERE clause present
-            return new ArrayList<>();
-        }
-        // Assuming WHERE clause is the last part of the query
-        return new ArrayList<>(tokens.subList(whereIndex + 1, tokens.size()));
-    }
 
     public String deleteFrom(String tableName, ArrayList<String> whereClause) throws IOException {
         if (currentDatabase != null) {
@@ -454,6 +370,11 @@ DBServer {
                 /* Detect if the Column name is reserved word */
                 if (reservedWordsDetector.isReservedWord(columnName)) {
                     return "[ERROR]: Using reserved word for columnName";
+                }
+                for (Column column : table.columns){
+                    if (column.getName().equalsIgnoreCase(columnName)){
+                        return "[ERROR]: Column " + columnName + " already exists.";
+                    }
                 }
                 table.addColumn(columnName);
                 table.updateTableFile();

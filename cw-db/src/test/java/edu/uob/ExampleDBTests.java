@@ -136,18 +136,21 @@ public class ExampleDBTests {
 
     @Test
     public void testUPDATE() {
-        sendCommandToServer("CREATE DATABASE markbook"  + ";");
-        sendCommandToServer("USE " + "markbook" + ";");
+        sendCommandToServer("CREATE DATABASE darkbook"  + ";");
+        sendCommandToServer("USE " + "darkbook" + ";");
         sendCommandToServer("CREATE TABLE marks (name, mark, pass);");
         sendCommandToServer("INSERT INTO marks VALUES ('Simon', 65, TRUE);");
         sendCommandToServer("INSERT INTO marks VALUES ('Sion', 55, TRUE);");
         String response = sendCommandToServer("UPDATE marks SET mark = 35, pass = FALSE WHERE name == 'Simon';");
         System.out.println(response);
+
+        String response1 = sendCommandToServer("SELECT * FROM marks;");
+        System.out.println(response1);
     }
 
     @Test
     public void testALTER() {
-        sendCommandToServer("CREATE DATABASE markbook"  + ";");
+        sendCommandToServer("CREATE DATABASE markbook;");
         sendCommandToServer("USE " + "markbook" + ";");
         sendCommandToServer("CREATE TABLE marks (name, mark, pass);");
         sendCommandToServer("INSERT INTO marks VALUES ('Simon', 65, TRUE);");
@@ -158,7 +161,7 @@ public class ExampleDBTests {
         String response1 = sendCommandToServer("SELECT * FROM marks;");
         System.out.println(response1);
 
-        String response2 = sendCommandToServer("UPDATE marks SET age = 35 WHERE name == 'Simon'");
+        String response2 = sendCommandToServer("UPDATE marks SET age = 35 WHERE name == 'Simon';");
         System.out.println(response2);
 
         String response3 = sendCommandToServer("SELECT * FROM marks;");
@@ -198,11 +201,7 @@ public class ExampleDBTests {
         System.out.println(response4);
     }
 
-    @Test
-    public void loadDatabse(){
-        Database test = new Database("aqfpjasann");
-        test.loadDatabase("aqfpjasann");
-    }
+
 
     @Test
     public void whereclause(){
@@ -214,7 +213,7 @@ public class ExampleDBTests {
         sendCommandToServer("INSERT INTO marks VALUES ('Sion', 55, TRUE);");
         sendCommandToServer("INSERT INTO marks VALUES ('Rob', 35, FALSE);");
         sendCommandToServer("INSERT INTO marks VALUES ('Chris', 20, FALSE);");
-        String response = sendCommandToServer("SELECT * FROM marks WHERE (pass == TRUE) AND (mark > 15);");
+        String response = sendCommandToServer("SELECT * FROM marks WHERE (pass == TRUE) AND (mark >= 55);");
         System.out.println(response);
     }
 

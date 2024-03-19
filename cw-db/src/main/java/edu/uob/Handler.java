@@ -14,6 +14,7 @@ public class Handler {
 
     String[] specialCharacters = {"(",")",",",";","<",">"};
     ArrayList<String> tokens = new ArrayList<String>();
+    private ReservedWordsDetector reservedWordsDetector= new ReservedWordsDetector();
 
     public ArrayList<String> preprocessQuery(String query)
     {
@@ -53,60 +54,113 @@ public class Handler {
         return input.split(" ");
     }
 
+    public List<String> extractValuesFromParenthesis(ArrayList<String> tokens) {
+        // Find the opening parenthesis to start of value list
+        int startIndex = tokens.indexOf("(") + 1;
+        int endIndex = tokens.indexOf(")");
+        // Extract the subList containing the values, split by comma
+        List<String> valueTokens = tokens.subList(startIndex, endIndex);
+        List<String> cleanedTokens = new ArrayList<>();
 
 
-
-
-    /*public void dropDatabase(String databaseName) {
-        if (databases.containsKey(databaseName.toLowerCase())) {
-            databases.remove(databaseName.toLowerCase());
-            System.out.println("Database " + databaseName + " dropped successfully.");
-        } else {
-            System.out.println("Database " + databaseName + " does not exist.");
-        }
-    }
-
-    public void dropTable(String tableName) {
-        if (this.currentDatabase != null) {
-            this.currentDatabase.dropTable(tableName.toLowerCase());
-        } else {
-            System.out.println("No database selected.");
-        }
-    }*/
-
-
-
-    /*public void updateTable(String tableName, ArrayList<String> setClause, ArrayList<String> whereClause) {
-        if (currentDatabase != null) {
-            Table table = currentDatabase.getTable(tableName);
-            if (table != null) {
-                table.updateRowsWithCondition(setClause, whereClause);
-            } else {
-                System.err.println("Table '" + tableName + "' does not exist in the current database.");
+        for (String token : valueTokens) {
+            /* Detect reserved words */
+            if (reservedWordsDetector.isReservedWord(token)) {
+                cleanedTokens.add("[ERROR]: Using reserved words for token");
+                return cleanedTokens;
             }
-        } else {
-            System.err.println("No current database is selected.");
+            String cleanedToken = token.replace("'", "");
+            cleanedTokens.add(cleanedToken);
+            cleanedTokens.remove(",");
         }
+        // Further processing may be needed if values contain commas, for example in strings
+        return cleanedTokens;
     }
 
-    public void deleteFrom(String tableName, ArrayList<String> whereClause) {
-        if (currentDatabase != null) {
-            Table table = currentDatabase.getTable(tableName);
-            if (table != null) {
-                table.deleteRowsWithCondition(whereClause);
-            } else {
-                System.err.println("Table '" + tableName + "' does not exist in the current database.");
+    /* "SELECT " <WildAttribList> " FROM " [TableName]
+     | "SELECT " <WildAttribList> " FROM " [TableName] " WHERE " <Condition> */
+    public String extractTableNameFromSelect(ArrayList<String> tokens) {
+        // Assuming the token following "FROM" is always the table name
+        int fromIndex = tokens.indexOf("FROM");
+        // Handle the case where "FROM" is not found or is the last word without following table name
+        if (fromIndex < 0 || fromIndex + 1 >= tokens.size()) {
+            return "[ERROR]: Attribute does not exist";
+        }
+        return tokens.get(fromIndex + 1);
+    }
+
+    public List<String> extractColumnsFromSelect(ArrayList<String> tokens) {
+        // Assuming the columns are listed after "SELECT" and before "FROM"
+        int selectIndex = tokens.indexOf("SELECT") + 1;
+        int fromIndex = tokens.indexOf("FROM");
+        if (fromIndex < 0 || selectIndex >= fromIndex) {
+            throw new IllegalStateException("Malformed SELECT query: Columns section is missing or incomplete.");
+        }
+        // Join tokens to handle columns like "table.column" and split by comma
+        String columnsCombined = String.join(" ", tokens.subList(selectIndex, fromIndex));
+        String[] columns = columnsCombined.split(",");
+
+        // Create a new list for trimmed column names
+        List<String> trimmedColumns = new ArrayList<>();
+        for (String column : columns) {
+            trimmedColumns.add(column.trim());
+        }
+        return trimmedColumns;
+    }
+
+
+    /* <NameValueList>   ::=  <NameValuePair> | <NameValuePair> "," <NameValueList>
+       <NameValuePair>   ::=  [AttributeName] "=" [Value] */
+    public ArrayList<String> extractSetClauseFromUpdate(ArrayList<String> tokens) {
+        // Find the indexes for "SET" and "WHERE" (if it exists)
+        int setIndex = tokens.indexOf("SET") + 1;
+        int whereIndex = tokens.indexOf("WHERE");
+
+        if (whereIndex != -1 && setIndex >= whereIndex) {
+            List<String> setClause = new ArrayList<>();
+            setClause.add("[ERROR]: SET clause is missing or incomplete.");
+        }
+        // If there is a WHERE clause, the SET clause ends just before it
+        // Otherwise, it goes to the end of the query
+        int endIndex = (whereIndex != -1) ? whereIndex : tokens.size();
+        return new ArrayList<>(tokens.subList(setIndex, endIndex));
+    }
+
+    /* " WHERE " <Condition>
+     * <Condition>       ::=  "(" <Condition> <BoolOperator> <Condition> ")" | <Condition> <BoolOperator> <Condition> | "(" [AttributeName] <Comparator> [Value] ")" | [AttributeName] <Comparator> [Value]
+       <BoolOperator>    ::= "AND" | "OR"
+       <Comparator>      ::=  "==" | ">" | "<" | ">=" | "<=" | "!=" | " LIKE " */
+    public ArrayList<String> extractWhereClause(ArrayList<String> tokens) {
+        // Check if the WHERE clause exists
+        int whereIndex = tokens.indexOf("WHERE");
+        if (whereIndex == -1) {
+            // No WHERE clause present
+            return new ArrayList<>();
+        }
+        // Extract the WHERE clause, assuming it is the last part of the query
+        List<String> whereClauseTokens = new ArrayList<>(tokens.subList(whereIndex + 1, tokens.size()));
+
+        // Initialize a new list to hold the modified tokens
+        ArrayList<String> modifiedTokens = new ArrayList<>();
+
+        // Iterate through the whereClauseTokens
+        for (int i = 0; i < whereClauseTokens.size(); i++) {
+            String currentToken = whereClauseTokens.get(i);
+            // Check if the current token is ">" or "<" and the next token is "=", then combine them
+            if (i < whereClauseTokens.size() - 1) { // Ensure there is a next token
+                String nextToken = whereClauseTokens.get(i + 1);
+                if ((">".equals(currentToken) || "<".equals(currentToken)) && "=".equals(nextToken)) {
+                    modifiedTokens.add(currentToken + "="); // Combine ">" or "<" with "="
+                    i++; // Skip the next token since it's combined with the current one
+                    continue;
+                }
             }
-        } else {
-            System.err.println("No current database is selected.");
+            // Add the current token to modifiedTokens if not combined
+            modifiedTokens.add(currentToken);
         }
+
+        return modifiedTokens;
     }
-
-    /* TODO:
-    public void joinTables(String firstTableName, String secondTableName, String firstAttributeName, String secondAttributeName) {
-
-
-    }*/
 
 }
 

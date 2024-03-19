@@ -13,7 +13,7 @@ import java.util.List;
 public class Table {
     private String name;
     public Path tablePath;
-    private List<Column> columns;
+    public List<Column> columns;
     public List<Row> rows;
     public int nextRowId;
 
@@ -44,11 +44,6 @@ public class Table {
 
     public void addColumn(String columnName) {
         // Check if the column already exists
-        for (Column column : columns) {
-            if (column.getName().equalsIgnoreCase(columnName)) {
-                throw new IllegalArgumentException("Column " + columnName + " already exists.");
-            }
-        }
         columns.add(new Column(columnName));
     }
 
