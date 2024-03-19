@@ -205,7 +205,7 @@ DBServer {
     }
 
     public String useDatabase(String databaseName) {
-        Path DatabasePath = Paths.get(storageFolderPath, databaseName);
+        Path DatabasePath = Paths.get(storageFolderPath, databaseName.toLowerCase());
 
         if (Files.exists(DatabasePath)){
             currentDatabasePath = DatabasePath;
