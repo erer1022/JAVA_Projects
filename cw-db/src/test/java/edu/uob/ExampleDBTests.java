@@ -204,5 +204,19 @@ public class ExampleDBTests {
         test.loadDatabase("aqfpjasann");
     }
 
+    @Test
+    public void whereclause(){
+        String randomName = generateRandomName();
+        sendCommandToServer("CREATE DATABASE " + randomName + ";");
+        sendCommandToServer("USE " + randomName + ";");
+        sendCommandToServer("CREATE TABLE marks (name, mark, pass);");
+        sendCommandToServer("INSERT INTO marks VALUES ('Simon', 65, TRUE);");
+        sendCommandToServer("INSERT INTO marks VALUES ('Sion', 55, TRUE);");
+        sendCommandToServer("INSERT INTO marks VALUES ('Rob', 35, FALSE);");
+        sendCommandToServer("INSERT INTO marks VALUES ('Chris', 20, FALSE);");
+        String response = sendCommandToServer("SELECT * FROM marks WHERE (pass == TRUE) AND (mark > 15);");
+        System.out.println(response);
+    }
+
 
 }

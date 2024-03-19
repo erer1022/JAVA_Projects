@@ -23,11 +23,7 @@ public class LogicalExpression implements Expression{
 
         for (Expression expr : expressions) {
             boolean exprResult;
-            if (expr instanceof Condition) {
-                exprResult = expr.evaluate(row);
-            } else { // LogicalExpression
-                exprResult = expr.evaluate(row);
-            }
+            exprResult = expr.evaluate(row);
 
             if ("AND".equals(operator)) {
                 result = result && exprResult;
@@ -45,10 +41,10 @@ public class LogicalExpression implements Expression{
     /*  (pass == FALSE) AND (mark > 35); */
 
     public static LogicalExpression parseConditions(ArrayList<String> tokens) {
-        Stack<Expression> stack = new Stack<>();
-        // Create an initial LogicalExpression with a neutral operator like "AND".
-        LogicalExpression currentExpression = new LogicalExpression("AND");
-        stack.push(currentExpression);
+        Stack<LogicalExpression> stack = new Stack<>();
+        // Initialize the root expression with a neutral operator like "AND".
+        LogicalExpression rootExpression = new LogicalExpression("AND");
+        stack.push(rootExpression);
 
         ArrayList<String> conditionParts = new ArrayList<>();
 
@@ -57,41 +53,39 @@ public class LogicalExpression implements Expression{
                 case "AND":
                 case "OR":
                     LogicalExpression newExpr = new LogicalExpression(token);
-                    // Add newExpr as a component to the expression before the top expression on the stack
-                    if (stack.size() > 1) {
-                        ((LogicalExpression) stack.get(stack.size() - 2)).addExpression(newExpr);
-                    }
-                    // Push newExpr onto the stack to start a new clause
+                    // Always add newExpr as a component to the current top expression on the stack.
+                    stack.peek().addExpression(newExpr);
+                    // Push newExpr onto the stack to start a new clause.
                     stack.push(newExpr);
-                    currentExpression = newExpr;
                     break;
                 case "(":
-                    // Start a new logical expression with the default "AND" which will be changed if needed
-                    currentExpression = new LogicalExpression("AND");
-                    stack.push(currentExpression);
+                    // Start a new logical expression with the default "AND" which will be changed if needed.
+                    LogicalExpression newLogicalExpr = new LogicalExpression("AND");
+                    stack.push(newLogicalExpr);
                     break;
                 case ")":
-                    // Pops the current logical expression as it's completed
-                    currentExpression = (LogicalExpression) stack.pop();
-                    // If there's another logical expression underneath, add the completed one to it
+                    // Pops the current logical expression as it's completed.
+                    LogicalExpression finishedExpr = stack.pop();
+                    // If there's another logical expression underneath, add the completed one to it.
                     if (!stack.isEmpty()) {
-                        ((LogicalExpression) stack.peek()).addExpression(currentExpression);
+                        stack.peek().addExpression(finishedExpr);
                     }
                     break;
                 default:
-                    // Non-operator tokens should be part of a condition
+                    // Non-operator tokens should be part of a condition.
                     conditionParts.add(token);
-                    // When we have three parts, we have a full condition
+                    // When we have three parts, we have a full condition.
                     if (conditionParts.size() == 3) {
                         Condition condition = new Condition(conditionParts.get(0), conditionParts.get(1), conditionParts.get(2));
-                        currentExpression.addExpression(condition);
+                        stack.peek().addExpression(condition);
                         conditionParts.clear();
                     }
                     break;
             }
         }
-        // At the end, the stack should only contain the root of the expression tree
-        return (LogicalExpression) stack.pop();
+        // The rootExpression is already at the base of the stack and thus does not need to be popped again.
+        return rootExpression;
     }
+
 
 }
