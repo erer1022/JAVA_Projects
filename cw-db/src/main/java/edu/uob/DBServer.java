@@ -64,20 +64,25 @@ DBServer {
 
             /* "USE " [DatabaseName] */
             case "USE":
-                return useDatabase(tokens.get(1));
+                if (tokens.size() == 3) {
+                    return useDatabase(tokens.get(1));
+                }
 
             /* <Create>          ::=  <CreateDatabase> | <CreateTable>
                <CreateDatabase>  ::=  "CREATE " "DATABASE " [DatabaseName]
                <CreateTable>     ::=  "CREATE " "TABLE " [TableName] | "CREATE " "TABLE " [TableName] "(" <AttributeList> ")"
                [AttributeName] | [AttributeName] "," <AttributeList> */
             case "CREATE":
+                if (tokens.size() < 4) {
+                    return "[ERROR]: Missing database name or table name.";
+                }
                 //Create DATABASE
                 if (tokens.get(1).equalsIgnoreCase("DATABASE") && tokens.size() == 4) {
                     return createDatabase(tokens.get(2));
                 }
 
                 //CREATE TABLE
-                else if (tokens.get(1).equalsIgnoreCase("TABLE")) {
+                else if (tokens.get(1).equalsIgnoreCase("TABLE") && tokens.size() >= 4) {
                     tableName = tokens.get(2);
                     List<String> columns = handler.extractValuesFromParenthesis(tokens);
                     return createTable(tableName, columns);
@@ -97,7 +102,7 @@ DBServer {
 
             /* "INSERT " "INTO " [TableName] " VALUES" "(" <ValueList> ")" */
             case "INSERT":
-                if (tokens.get(1).equalsIgnoreCase("INTO") && tokens.size() > 3) {
+                if (tokens.get(1).equalsIgnoreCase("INTO") && tokens.get(3).equalsIgnoreCase("VALUES") && tokens.size() >= 8) {
                     tableName = tokens.get(2);
                     List<String> values = handler.extractValuesFromParenthesis(tokens);
                     return insertInto(tableName, values);
@@ -141,7 +146,7 @@ DBServer {
                <AlterationType>  ::=  "ADD" | "DROP" */
             case "ALTER":
                 if (tokens.get(1).equalsIgnoreCase("TABLE") && tokens.get(3).equalsIgnoreCase("ADD")) {
-                    tableName = tokens.get(2);
+                    tableName = tokens.get(2).toLowerCase();
                     String columnName = tokens.get(4);
                     return alterTableAddColumn(tableName, columnName);
                 } else if (tokens.get(1).equalsIgnoreCase("TABLE") && tokens.get(3).equalsIgnoreCase("DROP")) {
@@ -190,8 +195,9 @@ DBServer {
 
 
     public String createDatabase(String databaseName) throws IOException {
+        // Check if the database name is valid
         if (reservedWordsDetector.isReservedWord(databaseName)) {
-            return "[ERROR]: Invalid database name";
+            return "[ERROR]: Invalid database name, using reserved words";
         }
 
         Path newDatabasePath = Paths.get(storageFolderPath, databaseName.toLowerCase());
@@ -199,6 +205,8 @@ DBServer {
             return "[ERROR]: Database '" + databaseName + "' already exists.";
         } else {
             Files.createDirectories(Paths.get(newDatabasePath.toString()));
+            /* Any database/table names provided by the user should be converted into lowercase
+               before saving out to the filesystem */
             Database newDatabase = new Database(databaseName.toLowerCase());
             databases.put(databaseName.toLowerCase(), newDatabase);
             return "[OK]";
@@ -239,7 +247,8 @@ DBServer {
         if (Files.exists(tablePath)) {
             return "[ERROR]: Table '" + tableName + "' already exists.";
         }
-
+        /* Any database/table names provided by the user should be
+           converted into lowercase before saving out to the filesystem */
         Table table = new Table(tableName.toLowerCase(), columnNames);
         table.tablePath = tablePath;
         currentDatabase.addTable(table);
@@ -252,9 +261,19 @@ DBServer {
             Table table = currentDatabase.getTable(tableName);
 
             if (table != null){
-                table.insertRow(values);
-                table.updateTableFile();
-                return "[OK]";
+                // The handler will return an empty arraylist if using reserved words
+                if (values.isEmpty()) {
+                    return "[ERROR]: Using reserved words.";
+                }
+
+                // table.getColumnNames().size() contains "id"
+                if (table.getColumnNames().size() - 1 < values.size()) {
+                    return "[ERROR]: Insert values exceed attributes.";
+                } else {
+                    table.insertRow(values);
+                    table.updateTableFile();
+                    return "[OK]";
+                }
             } else {
                 return "[ERROR]: Table '" + tableName + "' not exists.";
             }
