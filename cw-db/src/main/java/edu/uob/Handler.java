@@ -58,20 +58,24 @@ public class Handler {
         // Find the opening parenthesis to start of value list
         int startIndex = tokens.indexOf("(") + 1;
         int endIndex = tokens.indexOf(")");
+        // Check if parentheses exist and are in the correct order
+        if (startIndex == 0 || endIndex == -1 || startIndex > endIndex) {
+            return new ArrayList<>(); // Return an empty list if parentheses are not found or are in the wrong order
+        }
+
         // Extract the subList containing the values, split by comma
         List<String> valueTokens = tokens.subList(startIndex, endIndex);
         List<String> cleanedTokens = new ArrayList<>();
 
-
         for (String token : valueTokens) {
             /* Detect reserved words */
-            if (reservedWordsDetector.isReservedWord(token)) {
-                cleanedTokens.add("[ERROR]: Using reserved words for token");
-                return cleanedTokens;
+            if (reservedWordsDetector.isReservedWord(token.replace("'", ""))) {
+                return new ArrayList<>();
             }
             String cleanedToken = token.replace("'", "");
-            cleanedTokens.add(cleanedToken);
-            cleanedTokens.remove(",");
+            if (!cleanedToken.equals(",")) {
+                cleanedTokens.add(cleanedToken);
+            }
         }
         // Further processing may be needed if values contain commas, for example in strings
         return cleanedTokens;
@@ -80,32 +84,56 @@ public class Handler {
     /* "SELECT " <WildAttribList> " FROM " [TableName]
      | "SELECT " <WildAttribList> " FROM " [TableName] " WHERE " <Condition> */
     public String extractTableNameFromSelect(ArrayList<String> tokens) {
-        // Assuming the token following "FROM" is always the table name
-        int fromIndex = tokens.indexOf("FROM");
+        int fromIndex = -1; // Default to an invalid index
+        for (int i = 0; i < tokens.size(); i++) {
+            if (tokens.get(i).equalsIgnoreCase("FROM")) {
+                fromIndex = i;
+                break;
+            }
+        }
+
         // Handle the case where "FROM" is not found or is the last word without following table name
         if (fromIndex < 0 || fromIndex + 1 >= tokens.size()) {
-            return "[ERROR]: Attribute does not exist";
+            return "[ERROR]: Table Name does not exist";
         }
         return tokens.get(fromIndex + 1);
     }
 
+
     public List<String> extractColumnsFromSelect(ArrayList<String> tokens) {
         // Assuming the columns are listed after "SELECT" and before "FROM"
-        int selectIndex = tokens.indexOf("SELECT") + 1;
-        int fromIndex = tokens.indexOf("FROM");
-        if (fromIndex < 0 || selectIndex >= fromIndex) {
-            throw new IllegalStateException("Malformed SELECT query: Columns section is missing or incomplete.");
+        int fromIndex = -1; // Default to an invalid index
+        int selectIndex = -1;
+        for (int i = 0; i < tokens.size(); i++) {
+            if (tokens.get(i).equalsIgnoreCase("FROM")) {
+                fromIndex = i;
+                break;
+            }
         }
-        // Join tokens to handle columns like "table.column" and split by comma
-        String columnsCombined = String.join(" ", tokens.subList(selectIndex, fromIndex));
-        String[] columns = columnsCombined.split(",");
+        for (int i = 0; i < tokens.size(); i++) {
+            if (tokens.get(i).equalsIgnoreCase("SELECT")) {
+                selectIndex = i + 1;
+                break;
+            }
+        }
 
-        // Create a new list for trimmed column names
-        List<String> trimmedColumns = new ArrayList<>();
-        for (String column : columns) {
-            trimmedColumns.add(column.trim());
+        if (fromIndex < 0 || selectIndex >= fromIndex) {
+            //Return an empty arrayList for detection
+            return new ArrayList<>();
         }
-        return trimmedColumns;
+
+        // Extract the subList containing the values, split by comma
+        List<String> columnTokens = tokens.subList(selectIndex, fromIndex);
+        List<String> cleanedTokens = new ArrayList<>();
+
+        for (String token : columnTokens) {
+            String cleanedToken = token.replace("'", "");
+            if (!cleanedToken.equals(",")) {
+                cleanedTokens.add(cleanedToken);
+            }
+        }
+        // Further processing may be needed if values contain commas, for example in strings
+        return cleanedTokens;
     }
 
 
@@ -132,7 +160,14 @@ public class Handler {
        <Comparator>      ::=  "==" | ">" | "<" | ">=" | "<=" | "!=" | " LIKE " */
     public ArrayList<String> extractWhereClause(ArrayList<String> tokens) {
         // Check if the WHERE clause exists
-        int whereIndex = tokens.indexOf("WHERE");
+        int whereIndex = -1;
+        for (int i = 0; i < tokens.size(); i++) {
+            if (tokens.get(i).equalsIgnoreCase("WHERE")) {
+                whereIndex = i;
+                break;
+            }
+        }
+
         if (whereIndex == -1) {
             // No WHERE clause present
             return new ArrayList<>();
@@ -155,12 +190,16 @@ public class Handler {
                     continue;
                 }
             }
-            // Add the current token to modifiedTokens if not combined
-            modifiedTokens.add(currentToken);
+            // Add the current token to modifiedTokens, converting "and" or "or" to uppercase if necessary
+            if ("and".equalsIgnoreCase(currentToken)) {
+                modifiedTokens.add("AND");
+            } else if ("or".equalsIgnoreCase(currentToken)) {
+                modifiedTokens.add("OR");
+            } else {
+                modifiedTokens.add(currentToken);
+            }
         }
-
         return modifiedTokens;
     }
 
 }
-
