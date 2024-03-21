@@ -82,20 +82,23 @@ DBServer {
                 }
 
                 //CREATE TABLE
-                else if (tokens.get(1).equalsIgnoreCase("TABLE") && tokens.size() >= 4) {
+                else if (tokens.get(1).equalsIgnoreCase("TABLE")) {
                     tableName = tokens.get(2);
                     List<String> columns = handler.extractValuesFromParenthesis(tokens);
                     return createTable(tableName, columns);
                 }
-
                 break;
 
             /* "DROP " "DATABASE " [DatabaseName] | "DROP " "TABLE " [TableName] */
             case "DROP":
+                if (tokens.size() < 4) {
+                    return "[ERROR]: Missing database name or table name.";
+                }
+
                 if (tokens.get(1).equalsIgnoreCase("DATABASE") && tokens.size() == 4) {
-                    return dropDatabase(tokens.get(2));
+                    return dropDatabase(tokens.get(2).toLowerCase());
                 } else if (tokens.get(1).equalsIgnoreCase("TABLE") && tokens.size() == 4) {
-                    return dropTable(tokens.get(2));
+                    return dropTable(tokens.get(2).toLowerCase());
                 }
                 break;
 
@@ -103,7 +106,7 @@ DBServer {
             /* "INSERT " "INTO " [TableName] " VALUES" "(" <ValueList> ")" */
             case "INSERT":
                 if (tokens.get(1).equalsIgnoreCase("INTO") && tokens.get(3).equalsIgnoreCase("VALUES") && tokens.size() >= 8) {
-                    tableName = tokens.get(2);
+                    tableName = tokens.get(2).toLowerCase();
                     List<String> values = handler.extractValuesFromParenthesis(tokens);
                     return insertInto(tableName, values);
                 }
@@ -112,10 +115,17 @@ DBServer {
             /* "SELECT " <WildAttribList> " FROM " [TableName]
              | "SELECT " <WildAttribList> " FROM " [TableName] " WHERE " <Condition> */
             case "SELECT":
-                tableName = handler.extractTableNameFromSelect(tokens);
                 List<String> columnNames = handler.extractColumnsFromSelect(tokens);
-                whereClause = handler.extractWhereClause(tokens);
-                return selectFrom(tableName, columnNames, whereClause);
+                if (columnNames.isEmpty()) {
+                    return "[ERROR]: Missing attributes.";
+                }
+
+                if (tokens.size() >= 5) {
+                    tableName = handler.extractTableNameFromSelect(tokens).toLowerCase();
+                    whereClause = handler.extractWhereClause(tokens);
+                    return selectFrom(tableName, columnNames, whereClause);
+                }
+
 
 
             /* "UPDATE " [TableName] " SET " <NameValueList> " WHERE " <Condition>  */
@@ -220,7 +230,7 @@ DBServer {
             currentDatabasePath = DatabasePath;
             currentDatabase = databases.get(databaseName.toLowerCase());
 
-            /* the DBServer is restart */
+            /* the DBServer is restarted */
             if (currentDatabase == null) {
                 currentDatabase = new Database(databaseName.toLowerCase());
                 databases.put(databaseName.toLowerCase(), currentDatabase);
@@ -288,7 +298,7 @@ DBServer {
             if (table != null) {
                 List<Row> rowsToPrint;
 
-                if (whereClause != null && !whereClause.isEmpty()) {
+                if (!whereClause.isEmpty()) {
                     rowsToPrint = table.selectRowsWithCondition(whereClause);
                 } else {
                     rowsToPrint = table.getRows(); // If there is no where clause, select all rows
@@ -334,9 +344,10 @@ DBServer {
 
     public String dropDatabase(String databaseName) throws IOException {
         Path databasePath = Paths.get(storageFolderPath, databaseName);
-        if (databases.containsKey(databaseName.toLowerCase())) {
+        if (databases.containsKey(databaseName)) {
             deleteDirectoryRecursively(databasePath); // Recursively delete all files and the directory
-            databases.remove(databaseName.toLowerCase());
+            databases.get(databaseName).tables.clear(); // remove tables in the database
+            databases.remove(databaseName); // remove database from data structure
             return "[OK]";
         } else {
             return "[ERROR]: Database " + databaseName + " does not exist.";
@@ -358,7 +369,7 @@ DBServer {
         if (this.currentDatabase != null) {
             if (currentDatabase.getTable(tableName) != null) {
                 currentDatabase.getTable(tableName).deleteTableFile();
-                currentDatabase.dropTable(tableName.toLowerCase());
+                currentDatabase.dropTable(tableName);
                 return "[OK]";
             } else {
                 return "[ERROR]: Table " + tableName + " does not exist.";
