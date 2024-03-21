@@ -141,13 +141,31 @@ public class Handler {
        <NameValuePair>   ::=  [AttributeName] "=" [Value] */
     public ArrayList<String> extractSetClauseFromUpdate(ArrayList<String> tokens) {
         // Find the indexes for "SET" and "WHERE" (if it exists)
-        int setIndex = tokens.indexOf("SET") + 1;
-        int whereIndex = tokens.indexOf("WHERE");
-
-        if (whereIndex != -1 && setIndex >= whereIndex) {
-            List<String> setClause = new ArrayList<>();
-            setClause.add("[ERROR]: SET clause is missing or incomplete.");
+        int setIndex = -1;
+        int whereIndex = -1;
+        for (int i = 0; i < tokens.size(); i++) {
+            if (tokens.get(i).equalsIgnoreCase("SET")) {
+                setIndex = i + 1;
+                break;
+            }
         }
+        for (int i = 0; i < tokens.size(); i++) {
+            if (tokens.get(i).equalsIgnoreCase("WHERE")) {
+                whereIndex = i;
+                break;
+            }
+        }
+
+        // If "SET" is missing, return an empty ArrayList
+        if (setIndex == -1) {
+            return new ArrayList<>();
+        }
+
+        // If "WHERE" exists and is before "SET", or if "SET" is missing, return an empty list for detection
+        if (whereIndex != -1 && setIndex > whereIndex) {
+            return new ArrayList<>();
+        }
+
         // If there is a WHERE clause, the SET clause ends just before it
         // Otherwise, it goes to the end of the query
         int endIndex = (whereIndex != -1) ? whereIndex : tokens.size();
@@ -179,7 +197,7 @@ public class Handler {
         ArrayList<String> modifiedTokens = new ArrayList<>();
 
         // Iterate through the whereClauseTokens
-        for (int i = 0; i < whereClauseTokens.size(); i++) {
+        for (int i = 0; i < whereClauseTokens.size() - 1; i++) {
             String currentToken = whereClauseTokens.get(i);
             // Check if the current token is ">" or "<" and the next token is "=", then combine them
             if (i < whereClauseTokens.size() - 1) { // Ensure there is a next token
@@ -199,6 +217,7 @@ public class Handler {
                 modifiedTokens.add(currentToken);
             }
         }
+
         return modifiedTokens;
     }
 
