@@ -126,20 +126,27 @@ DBServer {
                     return selectFrom(tableName, columnNames, whereClause);
                 }
 
-
-
             /* "UPDATE " [TableName] " SET " <NameValueList> " WHERE " <Condition>  */
             case "UPDATE":
-                tableName = tokens.get(1);
+                tableName = tokens.get(1).toLowerCase();
                 ArrayList<String> setClause = handler.extractSetClauseFromUpdate(tokens);
+                if (setClause.isEmpty()) {
+                    return "[ERROR]: Missing set clause.";
+                }
                 whereClause = handler.extractWhereClause(tokens);
+                if (whereClause.isEmpty()) {
+                    return "[ERROR]: Missing where clause.";
+                }
                 return updateTable(tableName, setClause, whereClause);
 
             /* "DELETE " "FROM " [TableName] " WHERE " <Condition>*/
             case "DELETE":
                 if (tokens.get(1).equalsIgnoreCase("FROM")) {
-                    tableName = tokens.get(2);
+                    tableName = tokens.get(2).toLowerCase();
                     whereClause = handler.extractWhereClause(tokens);
+                    if (whereClause.size() < 3) {
+                        return "[ERROR]: Missing where clause.";
+                    }
                     return deleteFrom(tableName, whereClause);
                 }
                 break;
