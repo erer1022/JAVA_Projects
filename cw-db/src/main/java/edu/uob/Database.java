@@ -14,7 +14,7 @@ import java.util.List;
 public class Database {
     private String name;
     private Path path;
-    private HashMap<String, Table> tables;
+    public HashMap<String, Table> tables;
 
     public Database(String name){
         this.name = name;
