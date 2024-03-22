@@ -11,7 +11,6 @@ public class Condition implements Expression {
         this.value = value.replace("'", "");
     }
 
-
     @Override
     public boolean evaluate(Row row) {
         String rowValue = row.getValue(attributeName);
@@ -30,7 +29,7 @@ public class Condition implements Expression {
             case "!=":
                 return !rowValue.equals(value);
             case "LIKE":
-                return rowValue.contains(value); // Simplified version of LIKE, matches if rowValue contains the condition's value
+                return rowValue.contains(value);
             default:
                 throw new IllegalArgumentException("Unsupported operator: " + operator);
         }
