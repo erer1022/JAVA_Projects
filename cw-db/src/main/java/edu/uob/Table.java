@@ -67,7 +67,6 @@ public class Table {
         }
     }
 
-
     public void insertRow(List<String> values) throws IOException {
         //Add to the Data structure
         List<String> columnNames = this.getColumnNames();
@@ -94,13 +93,13 @@ public class Table {
                     writer.newLine(); // End the line for each row
                 }
             }
-        } // Try-with-resources ensures that the writer is closed properly, even if an exception is thrown
+        }
     }
 
     private String whitespace(String value) {
         StringBuilder whitespace = new StringBuilder();
         int length = value.length();
-        while(length < 18) {
+        while(length < 18) {  // To make sure the data value align with each other
             whitespace.append(" ");
             length++;
         }
@@ -114,8 +113,6 @@ public class Table {
             e.printStackTrace();
         }
     }
-
-
 
     public List<Row> getRows(){
         return rows;
@@ -134,12 +131,12 @@ public class Table {
 
     public String returnSelectedRows(List<Row> rows, List<String> columnNames) {
         StringBuilder result = new StringBuilder();
-
+        // generate the table's column names
         for (String columnName : columnNames) {
             result.append(columnName).append(whitespace(columnName));
         }
         result.append("\n");
-
+        // according to the column name, retrieve the data value
         for (Row row : rows) {
             for (String columnName : columnNames) {
                 int columnIndex = getColumnIndex(columnName);
@@ -168,7 +165,6 @@ public class Table {
             for (int i = 0; i < setClause.size(); i += 4) {
                 /* <NameValueList>   ::=  <NameValuePair> | <NameValuePair> "," <NameValueList>
                    <NameValuePair>   ::=  [AttributeName] "=" [Value] */
-
                 String columnName = setClause.get(i);
                 String value = setClause.get(i + 2);
                 row.updateValue(columnName, value);
@@ -187,8 +183,4 @@ public class Table {
             }
         }
     }
-
-
-
-
 }
