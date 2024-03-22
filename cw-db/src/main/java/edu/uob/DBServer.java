@@ -171,6 +171,7 @@ DBServer {
                     tableName = tokens.get(2).toLowerCase();
                     String columnName = tokens.get(4);
                     return alterTableAddColumn(tableName, columnName);
+
                 } else if (tokens.get(1).equalsIgnoreCase("TABLE") && tokens.get(3).equalsIgnoreCase("DROP")) {
                     tableName = tokens.get(2);
                     String columnName = tokens.get(4);
@@ -221,11 +222,11 @@ DBServer {
         if (reservedWordsDetector.isReservedWord(databaseName)) {
             return "[ERROR]: Invalid database name, using reserved words";
         }
-
+        // Check if the database name obey the plaintext rule
         if (!databaseName.matches("^[a-zA-Z0-9]+$")) {
             return "[ERROR]: Invalid database name, please obey plaintext rule";
         }
-
+        // Check if the database is already exist
         Path newDatabasePath = Paths.get(storageFolderPath, databaseName.toLowerCase());
         if (Files.exists(newDatabasePath)){
             return "[ERROR]: Database '" + databaseName + "' already exists.";
@@ -239,15 +240,14 @@ DBServer {
         }
     }
 
-
     public String useDatabase(String databaseName) {
         Path DatabasePath = Paths.get(storageFolderPath, databaseName.toLowerCase());
-
+        // Check if the database exist
         if (Files.exists(DatabasePath)){
             currentDatabasePath = DatabasePath;
             currentDatabase = databases.get(databaseName.toLowerCase());
 
-            /* the DBServer is restarted */
+            /* which means, the DBServer is restarted, thus reload and add to databases */
             if (currentDatabase == null) {
                 currentDatabase = new Database(databaseName.toLowerCase());
                 databases.put(databaseName.toLowerCase(), currentDatabase);
@@ -265,10 +265,11 @@ DBServer {
     }
 
     public String createTable(String tableName, List<String> columnNames) throws IOException {
+        // Check the table name is valid
         if (reservedWordsDetector.isReservedWord(tableName)) {
             return "[ERROR]: Invalid database name, using reserved word";
         }
-
+        // Check the table name obey the plaintext rule
         if (!tableName.matches("^[a-zA-Z0-9]+$")) {
             return "[ERROR]: Invalid table name, please obey plaintext rule";
         }
@@ -292,15 +293,13 @@ DBServer {
     }
 
     private boolean checkColumnNames(List<String> columnNames) {
-        // Create a HashSet from the list of column names.
         // The HashSet will contain each unique name only once.
         Set<String> uniqueNames = new HashSet<>(columnNames);
 
-        // If the sizes of the original list and the set are the same,
-        // it means there were no duplicates.
+        /* If the sizes of the original list and the set are the same,
+         it means there were no duplicates. */
         return uniqueNames.size() == columnNames.size();
     }
-
 
     public String insertInto(String tableName, List<String> values) throws IOException {
         if (currentDatabase != null) {
@@ -343,7 +342,7 @@ DBServer {
                 if (queryColumnNames.contains("*")) {
                     //Print all columns for the selected rows
                     return "[OK]" + "\n" + table.returnSelectedRows(rowsToPrint, table.getColumnNames());
-                } else {
+                } else { // Check the query column name is valid
                     if (!queryColumnCheck(table, queryColumnNames)) {
                         return "[ERROR]: Attribute does not exist ";
                     }
@@ -363,7 +362,7 @@ DBServer {
         for (String columnName : table.getColumnNames()) {
             tableColumnNames.add(columnName.toLowerCase());
         }
-
+        /* treat column names as case-insensitive for querying, but preserve the case when storing them */
         for (String queryAttribute : queryColumnNames) {
             if (tableColumnNames.contains(queryAttribute.toLowerCase())) {
                 return true;
@@ -371,9 +370,6 @@ DBServer {
         }
         return false;
     }
-
-
-
 
     public String deleteFrom(String tableName, ArrayList<String> whereClause) throws IOException {
         if (currentDatabase != null) {
@@ -416,7 +412,9 @@ DBServer {
     public String dropTable(String tableName) {
         if (this.currentDatabase != null) {
             if (currentDatabase.getTable(tableName) != null) {
+                // Delete table's file
                 currentDatabase.getTable(tableName).deleteTableFile();
+                // Delete table in the data structure
                 currentDatabase.dropTable(tableName);
                 return "[OK]";
             } else {
@@ -431,6 +429,7 @@ DBServer {
         if (currentDatabase != null) {
             Table table = currentDatabase.getTable(tableName);
             if (table != null) {
+                // User are not allowed to set the id
                 if (setClause.get(0).equalsIgnoreCase("id")) {
                     return "[ERROR]: changing (updating) the ID of a record is not allowed.";
                 }
@@ -453,11 +452,11 @@ DBServer {
                 if (reservedWordsDetector.isReservedWord(columnName)) {
                     return "[ERROR]: Using reserved word for columnName";
                 }
-
+                // Check the column name obey the plain text rule
                 if (!columnName.matches("^[a-zA-Z0-9]+$")) {
                     return "[ERROR]: Invalid column name, please obey plaintext rule";
                 }
-
+                // Check if the column has already been added
                 for (Column column : table.columns){
                     if (column.getName().equalsIgnoreCase(columnName)){
                         return "[ERROR]: Column " + columnName + " already exists.";
@@ -478,10 +477,11 @@ DBServer {
         if (currentDatabase != null) {
             Table table = currentDatabase.getTable(tableName);
             if (table != null) {
+                // User are not allowed to drop "id"
                 if (queryColumnName.equalsIgnoreCase("id")) {
                     return "[ERROR]: attempting to remove the ID column from a table.";
                 }
-
+                /* treat column names as case-insensitive for querying, but preserve the case when storing them */
                 String exactColumnName = null;
                 for (String columnName : table.getColumnNames()) {
                     if (columnName.equalsIgnoreCase(queryColumnName)) {
@@ -506,7 +506,6 @@ DBServer {
             return "[ERROR]: No current database is selected.";
         }
     }
-
 
     public String joinTables(String firstTableName, String secondTableName, String firstAttribute, String secondAttribute) throws IOException {
         if (currentDatabase != null) {
