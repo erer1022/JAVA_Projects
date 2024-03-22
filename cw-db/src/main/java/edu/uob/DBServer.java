@@ -4,9 +4,7 @@ import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.file.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 
 
 /** This class implements the DB server. */
@@ -130,11 +128,11 @@ DBServer {
             case "UPDATE":
                 tableName = tokens.get(1).toLowerCase();
                 ArrayList<String> setClause = handler.extractSetClauseFromUpdate(tokens);
-                if (setClause.isEmpty()) {
+                if (setClause.size() < 3) {
                     return "[ERROR]: Missing set clause.";
                 }
                 whereClause = handler.extractWhereClause(tokens);
-                if (whereClause.isEmpty()) {
+                if (whereClause.size() < 3) {
                     return "[ERROR]: Missing where clause.";
                 }
                 return updateTable(tableName, setClause, whereClause);
@@ -149,19 +147,26 @@ DBServer {
                     }
                     return deleteFrom(tableName, whereClause);
                 }
-                break;
+
 
             /* "JOIN " [TableName] " AND " [TableName] " ON " [AttributeName] " AND " [AttributeName] */
             case "JOIN":
-                String firstTable = tokens.get(1).toLowerCase();
-                String secondTable = tokens.get(3).toLowerCase();
-                String firstAttributeName = tokens.get(5).toLowerCase();
-                String secondAttributeName = tokens.get(7).toLowerCase();
-                return joinTables(firstTable, secondTable, firstAttributeName, secondAttributeName);
+                if (tokens.get(2).equalsIgnoreCase("AND") && tokens.get(4).equalsIgnoreCase("ON") && tokens.get(6).equalsIgnoreCase("AND")){
+                    String firstTable = tokens.get(1).toLowerCase();
+                    String secondTable = tokens.get(3).toLowerCase();
+                    String firstAttributeName = tokens.get(5).toLowerCase();
+                    String secondAttributeName = tokens.get(7).toLowerCase();
+                    return joinTables(firstTable, secondTable, firstAttributeName, secondAttributeName);
+                }
+
 
                 /* "ALTER " "TABLE " [TableName] " " <AlterationType> " " [AttributeName]
                <AlterationType>  ::=  "ADD" | "DROP" */
             case "ALTER":
+                if (tokens.size() != 6) {
+                    return "[ERROR]: Please check the query command.";
+                }
+
                 if (tokens.get(1).equalsIgnoreCase("TABLE") && tokens.get(3).equalsIgnoreCase("ADD")) {
                     tableName = tokens.get(2).toLowerCase();
                     String columnName = tokens.get(4);
@@ -266,12 +271,27 @@ DBServer {
         }
         /* Any database/table names provided by the user should be
            converted into lowercase before saving out to the filesystem */
+        if(!checkColumnNames(columnNames)) {
+            return "[Error]: Using duplicate column name.";
+        }
+
         Table table = new Table(tableName.toLowerCase(), columnNames);
         table.tablePath = tablePath;
         currentDatabase.addTable(table);
         table.updateTableFile();
         return "[OK]";
     }
+
+    private boolean checkColumnNames(List<String> columnNames) {
+        // Create a HashSet from the list of column names.
+        // The HashSet will contain each unique name only once.
+        Set<String> uniqueNames = new HashSet<>(columnNames);
+
+        // If the sizes of the original list and the set are the same,
+        // it means there were no duplicates.
+        return uniqueNames.size() == columnNames.size();
+    }
+
 
     public String insertInto(String tableName, List<String> values) throws IOException {
         if (currentDatabase != null) {
@@ -284,8 +304,8 @@ DBServer {
                 }
 
                 // table.getColumnNames().size() contains "id"
-                if (table.getColumnNames().size() - 1 < values.size()) {
-                    return "[ERROR]: Insert values exceed attributes.";
+                if (table.getColumnNames().size() - 1 < values.size() || table.getColumnNames().size() - 1 > values.size()) {
+                    return "[ERROR]: trying to insert too many (or too few) values into a table entry.";
                 } else {
                     table.insertRow(values);
                     table.updateTableFile();
@@ -390,6 +410,9 @@ DBServer {
         if (currentDatabase != null) {
             Table table = currentDatabase.getTable(tableName);
             if (table != null) {
+                if (setClause.get(0).equalsIgnoreCase("id")) {
+                    return "[ERROR]: changing (updating) the ID of a record is not allowed.";
+                }
                 table.updateRowsWithCondition(setClause, whereClause);
                 table.updateTableFile();
                 return "[OK]";
@@ -434,6 +457,10 @@ DBServer {
                     return "[ERROR]: Column does not exist ";
                 }
 
+                if (columnName.equalsIgnoreCase("id")) {
+                    return "[ERROR]: attempting to remove the ID column from a table";
+                }
+
                 table.dropColumn(columnName);
                 table.updateTableFile();
                 return "[OK]";
@@ -449,6 +476,10 @@ DBServer {
         if (currentDatabase != null) {
             Table firstTable = currentDatabase.getTable(firstTableName);
             Table secondTable = currentDatabase.getTable(secondTableName);
+            if(!(checkOrder(firstTable, firstAttribute) && checkOrder(secondTable, secondAttribute))) {
+                return "[ERROR]: The ordering of the specified tables should be the same as the ordering of the specified attributes";
+            }
+
             List<String> firstColumnNames = firstTable.getColumnNames();
             /* discard the ids from the original tables */
             firstColumnNames.remove("id");
@@ -462,15 +493,11 @@ DBServer {
             List<String> columnNames = new ArrayList<>();
             columnNames.add("id");
             for (String firstColumnName : firstColumnNames){
-                StringBuilder columnBuilder = new StringBuilder();
-                /* attribute names are prepended with name of table from which they originated */
-                columnBuilder.append(firstTableName).append(".").append(firstColumnName);
-                columnNames.add(columnBuilder.toString());
+                /* attribute names in the form OriginalTableName.AttributeName  */
+                columnNames.add(firstTableName + "." + firstColumnName);
             }
             for (String secondColumnName : secondColumnNames){
-                StringBuilder columnBuilder = new StringBuilder();
-                columnBuilder.append(secondTableName).append(".").append(secondColumnName);
-                columnNames.add(columnBuilder.toString());
+                columnNames.add(secondTableName + "." + secondColumnName);
             }
 
             Table joinTable = new Table("joinTable", columnNames);
@@ -499,6 +526,14 @@ DBServer {
 
         } else {
             return "[ERROR]: No current database is selected.";
+        }
+    }
+
+    private boolean checkOrder(Table table, String attribute) {
+        if (!table.getColumnNames().contains(attribute)){
+            return false;
+        } else {
+            return true;
         }
     }
 }
