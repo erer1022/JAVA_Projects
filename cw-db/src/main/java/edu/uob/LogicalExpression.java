@@ -74,7 +74,7 @@ public class LogicalExpression implements Expression{
                 default:
                     // Non-operator tokens should be part of a condition.
                     conditionParts.add(token);
-                    // When we have three parts, we have a full condition.
+                    // When have three parts, a full condition.
                     if (conditionParts.size() == 3) {
                         Condition condition = new Condition(conditionParts.get(0), conditionParts.get(1), conditionParts.get(2));
                         stack.peek().addExpression(condition);
@@ -83,9 +83,6 @@ public class LogicalExpression implements Expression{
                     break;
             }
         }
-        // The rootExpression is already at the base of the stack and thus does not need to be popped again.
         return rootExpression;
     }
-
-
 }
