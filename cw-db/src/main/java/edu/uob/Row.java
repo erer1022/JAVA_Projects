@@ -44,5 +44,4 @@ public class Row {
     public void dropValue(String attributeName) {
         valuesMap.remove(attributeName);
     }
-
 }
