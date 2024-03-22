@@ -222,6 +222,10 @@ DBServer {
             return "[ERROR]: Invalid database name, using reserved words";
         }
 
+        if (!databaseName.matches("^[a-zA-Z0-9]+$")) {
+            return "[ERROR]: Invalid database name, please obey plaintext rule";
+        }
+
         Path newDatabasePath = Paths.get(storageFolderPath, databaseName.toLowerCase());
         if (Files.exists(newDatabasePath)){
             return "[ERROR]: Database '" + databaseName + "' already exists.";
@@ -234,6 +238,7 @@ DBServer {
             return "[OK]";
         }
     }
+
 
     public String useDatabase(String databaseName) {
         Path DatabasePath = Paths.get(storageFolderPath, databaseName.toLowerCase());
@@ -261,7 +266,11 @@ DBServer {
 
     public String createTable(String tableName, List<String> columnNames) throws IOException {
         if (reservedWordsDetector.isReservedWord(tableName)) {
-            return "[ERROR]: Invalid database name";
+            return "[ERROR]: Invalid database name, using reserved word";
+        }
+
+        if (!tableName.matches("^[a-zA-Z0-9]+$")) {
+            return "[ERROR]: Invalid table name, please obey plaintext rule";
         }
 
         Path tablePath = getTablePath(tableName.toLowerCase());
@@ -319,7 +328,7 @@ DBServer {
         }
     }
 
-    public String selectFrom(String tableName, List<String> columnNames, ArrayList<String> whereClause) {
+    public String selectFrom(String tableName, List<String> queryColumnNames, ArrayList<String> whereClause) {
         if (currentDatabase != null){
             Table table = currentDatabase.getTable(tableName);
             if (table != null) {
@@ -331,17 +340,15 @@ DBServer {
                     rowsToPrint = table.getRows(); // If there is no where clause, select all rows
                 }
 
-                if (columnNames.contains("*")) {
+                if (queryColumnNames.contains("*")) {
                     //Print all columns for the selected rows
                     return "[OK]" + "\n" + table.returnSelectedRows(rowsToPrint, table.getColumnNames());
                 } else {
-                    for (String queryAttribute : columnNames) {
-                        if (!table.getColumnNames().contains(queryAttribute)) {
-                            return "[ERROR]: Attribute does not exist ";
-                        }
+                    if (!queryColumnCheck(table, queryColumnNames)) {
+                        return "[ERROR]: Attribute does not exist ";
                     }
                     //Print only specified columns for the selected rows
-                    return "[OK]" + "\n" + table.returnSelectedRows(rowsToPrint, columnNames);
+                    return "[OK]" + "\n" + table.returnSelectedRows(rowsToPrint, queryColumnNames);
                 }
             } else {
                 return "[ERROR]: Table '" + tableName + "' does not exist.";
@@ -349,6 +356,20 @@ DBServer {
         } else {
             return "[ERROR]: No database selected.";
         }
+    }
+
+    private boolean queryColumnCheck(Table table, List<String> queryColumnNames) {
+        List<String> tableColumnNames = new ArrayList<>();
+        for (String columnName : table.getColumnNames()) {
+            tableColumnNames.add(columnName.toLowerCase());
+        }
+
+        for (String queryAttribute : queryColumnNames) {
+            if (tableColumnNames.contains(queryAttribute.toLowerCase())) {
+                return true;
+            }
+        }
+        return false;
     }
 
 
@@ -432,6 +453,11 @@ DBServer {
                 if (reservedWordsDetector.isReservedWord(columnName)) {
                     return "[ERROR]: Using reserved word for columnName";
                 }
+
+                if (!columnName.matches("^[a-zA-Z0-9]+$")) {
+                    return "[ERROR]: Invalid column name, please obey plaintext rule";
+                }
+
                 for (Column column : table.columns){
                     if (column.getName().equalsIgnoreCase(columnName)){
                         return "[ERROR]: Column " + columnName + " already exists.";
@@ -448,22 +474,31 @@ DBServer {
         }
     }
 
-    public String alterTableDropColumn(String tableName, String columnName) throws IOException {
+    public String alterTableDropColumn(String tableName, String queryColumnName) throws IOException {
         if (currentDatabase != null) {
             Table table = currentDatabase.getTable(tableName);
             if (table != null) {
-                /* Detect if the table contains the column to be dropped */
-                if (!table.getColumnNames().contains(columnName)) {
-                    return "[ERROR]: Column does not exist ";
+                if (queryColumnName.equalsIgnoreCase("id")) {
+                    return "[ERROR]: attempting to remove the ID column from a table.";
                 }
 
-                if (columnName.equalsIgnoreCase("id")) {
-                    return "[ERROR]: attempting to remove the ID column from a table";
+                String exactColumnName = null;
+                for (String columnName : table.getColumnNames()) {
+                    if (columnName.equalsIgnoreCase(queryColumnName)) {
+                        exactColumnName = columnName;
+                        break;
+                    }
                 }
 
-                table.dropColumn(columnName);
-                table.updateTableFile();
-                return "[OK]";
+                /* If a matching column name was found, drop the column */
+                if (exactColumnName != null) {
+                    table.dropColumn(exactColumnName); // Use the exact case-sensitive name found
+                    table.updateTableFile();
+                    return "[OK]";
+                } else {
+                    // If no matching column name was found, return an error
+                    return "[ERROR]: Column '" + queryColumnName + "' does not exist.";
+                }
             } else {
                 return "[ERROR]: Table '" + tableName + "' does not exist in the current database.";
             }
@@ -471,6 +506,7 @@ DBServer {
             return "[ERROR]: No current database is selected.";
         }
     }
+
 
     public String joinTables(String firstTableName, String secondTableName, String firstAttribute, String secondAttribute) throws IOException {
         if (currentDatabase != null) {
