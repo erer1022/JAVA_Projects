@@ -50,7 +50,6 @@ public class ReservedWordsDetector {
         reservedWords.add("FROM");
         reservedWords.add("and");
         reservedWords.add("AND");
-
     }
 
     public boolean isReservedWord(String word) {
