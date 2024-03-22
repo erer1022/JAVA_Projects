@@ -1,19 +1,13 @@
 package edu.uob;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 
 public class Handler {
 
     String[] specialCharacters = {"(",")",",",";","<",">","=="};
-    ArrayList<String> tokens = new ArrayList<String>();
+    ArrayList<String> tokens = new ArrayList<>();
     private ReservedWordsDetector reservedWordsDetector= new ReservedWordsDetector();
 
     public ArrayList<String> preprocessQuery(String query)
@@ -60,7 +54,8 @@ public class Handler {
         int endIndex = tokens.indexOf(")");
         // Check if parentheses exist and are in the correct order
         if (startIndex == 0 || endIndex == -1 || startIndex > endIndex) {
-            return new ArrayList<>(); // Return an empty list if parentheses are not found or are in the wrong order
+            // Return an empty list if parentheses are not found or are in the wrong order
+            return new ArrayList<>();
         }
 
         // Extract the subList containing the values, split by comma
@@ -74,10 +69,10 @@ public class Handler {
             }
             String cleanedToken = token.replace("'", "");
             if (!cleanedToken.equals(",")) {
+                // Remove the ","
                 cleanedTokens.add(cleanedToken);
             }
         }
-        // Further processing may be needed if values contain commas, for example in strings
         return cleanedTokens;
     }
 
@@ -86,19 +81,18 @@ public class Handler {
     public String extractTableNameFromSelect(ArrayList<String> tokens) {
         int fromIndex = -1; // Default to an invalid index
         for (int i = 0; i < tokens.size(); i++) {
+            // case-insensitive
             if (tokens.get(i).equalsIgnoreCase("FROM")) {
                 fromIndex = i;
                 break;
             }
         }
-
         // Handle the case where "FROM" is not found or is the last word without following table name
         if (fromIndex < 0 || fromIndex + 1 >= tokens.size()) {
             return "[ERROR]: Table Name does not exist";
         }
         return tokens.get(fromIndex + 1);
     }
-
 
     public List<String> extractColumnsFromSelect(ArrayList<String> tokens) {
         // Assuming the columns are listed after "SELECT" and before "FROM"
@@ -132,15 +126,13 @@ public class Handler {
                 cleanedTokens.add(cleanedToken);
             }
         }
-        // Further processing may be needed if values contain commas, for example in strings
         return cleanedTokens;
     }
-
 
     /* <NameValueList>   ::=  <NameValuePair> | <NameValuePair> "," <NameValueList>
        <NameValuePair>   ::=  [AttributeName] "=" [Value] */
     public ArrayList<String> extractSetClauseFromUpdate(ArrayList<String> tokens) {
-        // Find the indexes for "SET" and "WHERE" (if it exists)
+        // Find the indexes for "SET" and "WHERE"
         int setIndex = -1;
         int whereIndex = -1;
         for (int i = 0; i < tokens.size(); i++) {
@@ -161,13 +153,13 @@ public class Handler {
             return new ArrayList<>();
         }
 
-        // If "WHERE" exists and is before "SET", or if "SET" is missing, return an empty list for detection
+        // If "WHERE" exists and is before "SET", return an empty list for detection
         if (whereIndex != -1 && setIndex > whereIndex) {
             return new ArrayList<>();
         }
 
-        // If there is a WHERE clause, the SET clause ends just before it
-        // Otherwise, it goes to the end of the query
+        /* If there is a WHERE clause, the SET clause ends just before it
+           Otherwise, it goes to the end of the query */
         int endIndex = (whereIndex != -1) ? whereIndex : tokens.size();
         return new ArrayList<>(tokens.subList(setIndex, endIndex));
     }
@@ -187,16 +179,13 @@ public class Handler {
         }
 
         if (whereIndex == -1) {
-            // No WHERE clause present
+            // No WHERE clause present, return an empty list for detection
             return new ArrayList<>();
         }
         // Extract the WHERE clause, assuming it is the last part of the query
         List<String> whereClauseTokens = new ArrayList<>(tokens.subList(whereIndex + 1, tokens.size()));
-
-        // Initialize a new list to hold the modified tokens
         ArrayList<String> modifiedTokens = new ArrayList<>();
 
-        // Iterate through the whereClauseTokens
         for (int i = 0; i < whereClauseTokens.size() - 1; i++) {
             String currentToken = whereClauseTokens.get(i);
             // Check if the current token is ">" or "<" and the next token is "=", then combine them
@@ -208,7 +197,7 @@ public class Handler {
                     continue;
                 }
             }
-            // Add the current token to modifiedTokens, converting "and" or "or" to uppercase if necessary
+            // Add the current token to modifiedTokens, converting "and" or "or" to uppercase
             if ("and".equalsIgnoreCase(currentToken)) {
                 modifiedTokens.add("AND");
             } else if ("or".equalsIgnoreCase(currentToken)) {
@@ -217,8 +206,6 @@ public class Handler {
                 modifiedTokens.add(currentToken);
             }
         }
-
         return modifiedTokens;
     }
-
 }
