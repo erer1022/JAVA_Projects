@@ -65,6 +65,7 @@ DBServer {
                 if (tokens.size() == 3) {
                     return useDatabase(tokens.get(1));
                 }
+                break;
 
             /* <Create>          ::=  <CreateDatabase> | <CreateTable>
                <CreateDatabase>  ::=  "CREATE " "DATABASE " [DatabaseName]
@@ -123,6 +124,7 @@ DBServer {
                     whereClause = handler.extractWhereClause(tokens);
                     return selectFrom(tableName, columnNames, whereClause);
                 }
+                break;
 
             /* "UPDATE " [TableName] " SET " <NameValueList> " WHERE " <Condition>  */
             case "UPDATE":
@@ -147,6 +149,7 @@ DBServer {
                     }
                     return deleteFrom(tableName, whereClause);
                 }
+                break;
 
 
             /* "JOIN " [TableName] " AND " [TableName] " ON " [AttributeName] " AND " [AttributeName] */
@@ -158,6 +161,7 @@ DBServer {
                     String secondAttributeName = tokens.get(7).toLowerCase();
                     return joinTables(firstTable, secondTable, firstAttributeName, secondAttributeName);
                 }
+                break;
 
 
                 /* "ALTER " "TABLE " [TableName] " " <AlterationType> " " [AttributeName]
