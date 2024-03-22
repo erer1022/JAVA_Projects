@@ -26,13 +26,16 @@ public class Row {
     }
 
     public String getValue(String attributeName) {
-        if (valuesMap.get(attributeName) != null) {
-            return valuesMap.get(attributeName);
-        } else {
-            return "";
+        for (Map.Entry<String, String> entry : valuesMap.entrySet()) {
+            // Check if the entry's key matches attributeName, ignoring case differences
+            if (entry.getKey().equalsIgnoreCase(attributeName)) {
+                return entry.getValue();
+            }
         }
-
+        // If no matching key is found, return an empty string
+        return "";
     }
+
 
     public void updateValue(String attributeName, String value) {
         valuesMap.put(attributeName, value);
