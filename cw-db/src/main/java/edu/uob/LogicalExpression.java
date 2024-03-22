@@ -19,7 +19,7 @@ public class LogicalExpression implements Expression{
 
     @Override
     public boolean evaluate(Row row) {
-        boolean result = "OR".equals(operator) ? false : true;
+        boolean result = !"OR".equals(operator);
 
         for (Expression expr : expressions) {
             boolean exprResult;
