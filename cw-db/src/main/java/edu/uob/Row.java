@@ -36,7 +36,6 @@ public class Row {
         return "";
     }
 
-
     public void updateValue(String attributeName, String value) {
         valuesMap.put(attributeName, value);
     }
