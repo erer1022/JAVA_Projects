@@ -11,15 +11,19 @@ import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 
 public final class GameServer {
 
     private static final char END_OF_TRANSMISSION = 4;
     private final EntityParser entityParser;
+    private final ActionParser actionParser;
     private List<Location> locations;
 
-
+    private HashMap<String,HashSet<GameAction>> actions;
 
 
     public static void main(String[] args) throws IOException {
@@ -39,13 +43,14 @@ public final class GameServer {
     public GameServer(File entitiesFile, File actionsFile) {
         // TODO implement your server logic here
 
-
         // Create an instance of the EntityParser and inject the Parser
         entityParser = new EntityParser();
+        actionParser = new ActionParser();
 
         try {
             List<Graph> sections = entityParser.parseEntitiesFromFile(entitiesFile);
             locations = entityParser.parseLocations(sections);
+            actions = actionParser.parseActionsFromFile(actionsFile);
 
         } catch (IOException e) {
             // Handle the exceptions appropriately

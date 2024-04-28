@@ -14,9 +14,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class EntityParser {
-        public List<Graph> parseEntitiesFromFile(File entityFile) throws IOException, ParseException {
+        public List<Graph> parseEntitiesFromFile(File entitiesFile) throws IOException, ParseException {
                 try  {
-                        FileReader reader = new FileReader(entityFile);
+                        FileReader reader = new FileReader(entitiesFile);
                         Parser parser = new Parser();
                         parser.parse(reader);
                         /* Returns the main Graphs found in the Reader stream */
@@ -25,9 +25,9 @@ public class EntityParser {
                         List<Graph> sections = wholeDocument.getSubgraphs();
                         return sections;
                 } catch (FileNotFoundException e) {
-                        throw new IOException("The file was not found: " + entityFile.getAbsolutePath(), e);
+                        throw new IOException("The file was not found: " + entitiesFile.getAbsolutePath(), e);
                 } catch (ParseException e) {
-                        throw new ParseException("Error parsing the file: " + entityFile.getAbsolutePath());
+                        throw new ParseException("Error parsing the file: " + entitiesFile.getAbsolutePath());
                 }
 
         }
