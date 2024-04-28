@@ -1,5 +1,7 @@
 package edu.uob;
 
+import com.alexmerz.graphviz.objects.Graph;
+
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -9,10 +11,16 @@ import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.file.Paths;
+import java.util.List;
 
 public final class GameServer {
 
     private static final char END_OF_TRANSMISSION = 4;
+    private final EntityParser entityParser;
+    private List<Location> locations;
+
+
+
 
     public static void main(String[] args) throws IOException {
         File entitiesFile = Paths.get("config" + File.separator + "basic-entities.dot").toAbsolutePath().toFile();
@@ -30,7 +38,21 @@ public final class GameServer {
     */
     public GameServer(File entitiesFile, File actionsFile) {
         // TODO implement your server logic here
-        entityParser entityParser = new entityParser(entitiesFile);
+
+
+        // Create an instance of the EntityParser and inject the Parser
+        entityParser = new EntityParser();
+
+        try {
+            List<Graph> sections = entityParser.parseEntitiesFromFile(entitiesFile);
+            locations = entityParser.parseLocations(sections);
+
+        } catch (IOException e) {
+            // Handle the exceptions appropriately
+            e.printStackTrace();
+        } catch (com.alexmerz.graphviz.ParseException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**

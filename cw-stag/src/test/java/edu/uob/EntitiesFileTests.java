@@ -23,13 +23,13 @@ final class EntitiesFileTests {
           Parser parser = new Parser();
           FileReader reader = new FileReader("config" + File.separator + "basic-entities.dot");
           parser.parse(reader);
-          Graph wholeDocument = parser.getGraphs().get(0);  /* Returns the main Graphs found in the Reader stream */
-          ArrayList<Graph> sections = wholeDocument.getSubgraphs();  /* Returns a list of all sub graphs. */
+          Graph wholeDocument = parser.getGraphs().get(0);
+          ArrayList<Graph> sections = wholeDocument.getSubgraphs();
 
           // The locations will always be in the first subgraph
           ArrayList<Graph> locations = sections.get(0).getSubgraphs();
           Graph firstLocation = locations.get(0);
-          Node locationDetails = firstLocation.getNodes(false).get(0); /* Returns all Nodes of the graph */
+          Node locationDetails = firstLocation.getNodes(false).get(0);
           /* Parameters: if true, also include nodes in subgraphs also, else exclude them */
 
           // Yes, you do need to get the ID twice !
