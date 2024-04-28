@@ -1,5 +1,6 @@
 package edu.uob;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class Location extends GameEntity{
@@ -8,7 +9,12 @@ public class Location extends GameEntity{
     private List<Furniture> furnitures;
     private List<Character> characters;
     public Location(String name, String description) {
+
         super(name, description);
+        this.paths = new ArrayList<>(); // Initialize paths list
+        this.artefacts = new ArrayList<>(); // Initialize artefacts list
+        this.furnitures = new ArrayList<>(); // Initialize furnitures list
+        this.characters = new ArrayList<>(); // Initialize characters list
     }
 
     public void addPath(LocationPath path) {
