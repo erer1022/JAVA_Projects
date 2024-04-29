@@ -38,22 +38,7 @@ public class GameAction {
         return narration;
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        GameAction that = (GameAction) o;
-        return Objects.equals(triggers, that.triggers) &&
-                Objects.equals(subjects, that.subjects) &&
-                Objects.equals(consumed, that.consumed) &&
-                Objects.equals(produced, that.produced) &&
-                Objects.equals(narration, that.narration);
-    }
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(triggers, subjects, consumed, produced, narration);
-    }
 
     /* Use to print the GameAction Data structure
     @Override

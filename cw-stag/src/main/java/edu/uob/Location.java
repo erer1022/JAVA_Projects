@@ -31,4 +31,20 @@ public class Location extends GameEntity{
         characters.add(character);
     }
 
+    public List<Artefact> getArtefacts() {
+        return artefacts;
+    }
+
+    public List<Furniture> getFurnitures() {
+        return furnitures;
+    }
+
+    public List<Character> getCharacters() {
+        return characters;
+    }
+
+    public List<LocationPath> getPaths() {
+        return paths;
+    }
+
 }

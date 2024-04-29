@@ -33,6 +33,7 @@ class ExampleSTAGTests {
   void testLook() {
     String response = sendCommandToServer("simon: look");
     response = response.toLowerCase();
+    System.out.println(response);
     assertTrue(response.contains("cabin"), "Did not see the name of the current room in response to look");
     assertTrue(response.contains("log cabin"), "Did not see a description of the room in response to look");
     assertTrue(response.contains("magic potion"), "Did not see a description of artifacts in response to look");

@@ -7,4 +7,8 @@ public class LocationPath {
         this.toName = toName;
     }
 
+    public String getDescription() {
+        return "Here's the path: " + fromName + " -> " + toName;
+    }
+
 }
