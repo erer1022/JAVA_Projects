@@ -82,6 +82,7 @@ public final class GameServer {
 
         // Retrieve or create the player
         Player player = getOrCreatePlayer(playerName);
+        Location currentLocation = player.getCurrentLocation();
 
         // Split the processed command into tokens
         List<String> tokens = Arrays.asList(processedCommand.split("\\s+"));
@@ -95,9 +96,8 @@ public final class GameServer {
 
         for (String token : tokens) {
             switch (token) {
+                /* prints names and descriptions of entities in the current location and lists paths to other locations */
                 case "look":
-                    Location currentLocation = player.getCurrentLocation();
-
                     StringBuilder description = new StringBuilder("Welcome!\n");
                     description.append("This is ").append(currentLocation.getDescription()).append("\n");
 
@@ -106,19 +106,38 @@ public final class GameServer {
                     description.append("There is ").append(artefact.getDescription()).append("\n");
                 }
 
-                for (Furniture furniture : currentLocation.getFurnitures()) {
-                    description.append(furniture.getDescription()).append("\n");
-                }
+                    for (Furniture furniture : currentLocation.getFurnitures()) {
+                        description.append(furniture.getDescription()).append("\n");
+                    }
 
-                for (Character character : currentLocation.getCharacters()) {
-                    description.append(character.getDescription()).append("\n");
-                }
+                    for (Character character : currentLocation.getCharacters()) {
+                        description.append(character.getDescription()).append("\n");
+                    }
 
-                for (LocationPath path : currentLocation.getPaths()) {
-                    description.append(path.getDescription()).append("\n");
-                }
+                    for (LocationPath path : currentLocation.getPaths()) {
+                        description.append(path.getDescription()).append("\n");
+                    }
+                    return description.toString();
 
-                return description.toString();
+                /* inventory (or inv for short) lists all of the artefacts currently being carried by the player */
+                case "inventory":
+                case "inv":
+                    List<Artefact> inventory = player.getInventory();
+                    List<String> inventoryNameList = new ArrayList<>();
+                    for (Artefact artefact : inventory) {
+                        inventoryNameList.add(artefact.getName());
+                    }
+                    return "Here's your inventory" + String.join(", ", inventoryNameList);
+
+                case "get":
+                    return getArtefact(player, currentLocation, tokens);
+
+                case "drop":
+                    return dropArtefact(player, currentLocation, tokens);
+
+                case "goto":
+                    return goToNextLocation(player, currentLocation, tokens);
+
 
                 default:
                     // Assume getMatchingAction is a method to determine the matching action based on tokens
@@ -130,10 +149,73 @@ public final class GameServer {
                     }
             }
         }
-
         // Return a default message if no actions or commands matched
         return "Command not recognized.";
     }
+
+    private String getArtefact(Player currentPlayer, Location currentLocation, List<String> tokens) {
+        /* get the list of current location's artefacts */
+        List<Artefact> currentLocationArtefacts = currentLocation.getArtefacts();
+        for(Artefact artefactToGet : currentLocationArtefacts) {
+            for(String token : tokens) {
+                /* if get xxx, the artefact do exist in the location */
+                if(artefactToGet.getName().equals(token)) {
+                    /* add the artefact to player's inventory */
+                    currentPlayer.addArtefact(artefactToGet);
+                    /* remove the artefact from the current location */
+                    currentLocation.removeArtefact(artefactToGet);
+                    return "You've successfully got the " + artefactToGet.getName();
+                }
+            }
+        }
+        return "There's no such artefact can be obtained.";
+    }
+
+    private String dropArtefact(Player currentPlayer, Location currentLocation, List<String> tokens) {
+        List<Artefact> inventoryList = currentPlayer.getInventory();
+
+        for (String token : tokens) {
+            // Find the artefact that matches the token
+            Artefact artefactToDrop = inventoryList.stream()
+                    .filter(artefact -> artefact.getName().equalsIgnoreCase(token))
+                    .findFirst()
+                    .orElse(null);
+
+            if (artefactToDrop != null) {
+                // Remove the artefact from the player's inventory
+                currentPlayer.removeArtefact(artefactToDrop);
+                // Add it back to the current location
+                currentLocation.addArtefact(artefactToDrop);
+                return "You've successfully dropped the " + artefactToDrop.getName();
+            }
+        }
+        // If no matching artefact was found to drop
+        return "You can't drop this artefact, because you don't have it.";
+    }
+
+    public String goToNextLocation(Player currentPlayer, Location currentLocation, List<String> tokens) {
+        List<LocationPath> paths = currentLocation.getPaths(); // Get the list of paths from the current location
+
+        for (String token : tokens) {
+            for (LocationPath path : paths) {
+                // Check if the path's destination matches the token (case-insensitive comparison)
+                if (path.getToLocation().getName().equalsIgnoreCase(token)) {
+                    Location nextLocation = path.getToLocation(); // Retrieve the next location
+
+                    // Set the player's current location to this new location
+                    currentPlayer.resetLocation(nextLocation);
+
+                    return "You've successfully moved to " + nextLocation.getName();
+                }
+            }
+        }
+        // If no valid path is found, return a message indicating failure
+        return "You can't go there from here.";
+    }
+
+
+
+
 
     private Player getOrCreatePlayer(String playerName) {
         // Check if the player already exists

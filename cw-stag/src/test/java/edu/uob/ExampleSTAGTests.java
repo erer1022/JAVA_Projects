@@ -46,9 +46,10 @@ class ExampleSTAGTests {
   void testGet()
   {
       String response;
-      sendCommandToServer("simon: get potion");
+      response = sendCommandToServer("simon: get potion");
       response = sendCommandToServer("simon: inv");
       response = response.toLowerCase();
+
       assertTrue(response.contains("potion"), "Did not see the potion in the inventory after an attempt was made to get it");
       response = sendCommandToServer("simon: look");
       response = response.toLowerCase();

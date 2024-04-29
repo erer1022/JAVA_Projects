@@ -29,18 +29,23 @@ public class Player {
         return currentLocation;
     }
 
+    public void resetLocation(Location nextLocation) {
+        this.currentLocation = nextLocation;
+    }
+
     // Methods to handle the player's inventory
     public void addArtefact(Artefact artefact) {
         inventory.add(artefact);
     }
 
-    public boolean removeArtefact(Artefact artefact) {
-        return inventory.remove(artefact);
+    public void removeArtefact(Artefact artefact) { inventory.remove(artefact);
     }
 
     public List<Artefact> getInventory() {
         return inventory;
     }
+
+
 
     // Methods for health management
     public void takeDamage(int amount) {

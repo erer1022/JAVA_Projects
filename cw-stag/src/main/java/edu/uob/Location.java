@@ -34,6 +34,9 @@ public class Location extends GameEntity{
     public List<Artefact> getArtefacts() {
         return artefacts;
     }
+    public void removeArtefact(Artefact artefact) {
+        artefacts.remove(artefact);
+    }
 
     public List<Furniture> getFurnitures() {
         return furnitures;

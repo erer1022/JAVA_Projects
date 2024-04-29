@@ -1,14 +1,22 @@
 package edu.uob;
 
 public class LocationPath {
-    private String fromName, toName;
-    public LocationPath(String fromName, String toName) {
-        this.fromName = fromName;
-        this.toName = toName;
+    private Location fromLocation, toLocation;
+
+    public LocationPath(Location fromLocation, Location toLocation) {
+        this.fromLocation = fromLocation;
+        this.toLocation = toLocation;
     }
 
     public String getDescription() {
-        return "Here's the path: " + fromName + " -> " + toName;
+        return "Here's the path: " + fromLocation.getName() + " -> " + toLocation.getName();
     }
 
+    public Location getToLocation() {
+        return toLocation;
+    }
+
+    public Location getFromLocation() {
+        return fromLocation;
+    }
 }

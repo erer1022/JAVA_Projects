@@ -146,21 +146,33 @@ public class EntityParser {
                 /* Returns all edges of this graph */
                 ArrayList<Edge> paths = sections.get(1).getEdges();
 
-                for (int i = 0; i < paths.size(); i++) {
-                        Edge path = paths.get(i);
-                        Node fromLocation = path.getSource().getNode(); /* Returns the source node of the edge */
-                        String fromName = fromLocation.getId().getId();
-                        Node toLocation = path.getTarget().getNode(); /* Returns the target node of the edge */
-                        String toName = toLocation.getId().getId();
+                for (Edge path : paths) {
+                        Node fromLocationNode = path.getSource().getNode(); // Source node of the edge
+                        Node toLocationNode = path.getTarget().getNode(); // Target node of the edge
 
-                        for (Location location : locations) {
-                                if (location.getName().equalsIgnoreCase(fromName)) {
-                                        LocationPath locationPath = new LocationPath(fromName, toName);
-                                        location.addPath(locationPath);
-                                }
+                        String fromName = fromLocationNode.getId().getId(); // Get source location's name
+                        String toName = toLocationNode.getId().getId(); // Get target location's name
+
+                        Location fromLocation = findLocationByName(locations, fromName);
+                        Location toLocation = findLocationByName(locations, toName);
+
+                        if (fromLocation != null && toLocation != null) {
+                                LocationPath locationPath = new LocationPath(fromLocation, toLocation); // Create LocationPath with actual objects
+                                fromLocation.addPath(locationPath); // Add path to source location
                         }
                 }
         }
+
+        private Location findLocationByName(List<Location> locations, String name) {
+                for (Location location : locations) {
+                        if (location.getName().equalsIgnoreCase(name)) {
+                                return location;
+                        }
+                }
+                return null; // Return null if not found
+        }
+
+
 
 
 }
