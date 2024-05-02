@@ -98,26 +98,7 @@ public final class GameServer {
             switch (token) {
                 /* prints names and descriptions of entities in the current location and lists paths to other locations */
                 case "look":
-                    StringBuilder description = new StringBuilder("Welcome!\n");
-                    description.append("This is ").append(currentLocation.getDescription()).append("\n");
-
-                    // Append descriptions of artefacts, furniture, characters, and paths
-                    for (Artefact artefact : currentLocation.getArtefacts()) {
-                    description.append("There is ").append(artefact.getDescription()).append("\n");
-                }
-
-                    for (Furniture furniture : currentLocation.getFurnitures()) {
-                        description.append(furniture.getDescription()).append("\n");
-                    }
-
-                    for (Character character : currentLocation.getCharacters()) {
-                        description.append(character.getDescription()).append("\n");
-                    }
-
-                    for (LocationPath path : currentLocation.getPaths()) {
-                        description.append(path.getDescription()).append("\n");
-                    }
-                    return description.toString();
+                    return lookCurrentLocation(currentLocation);
 
                 /* inventory (or inv for short) lists all of the artefacts currently being carried by the player */
                 case "inventory":
@@ -127,7 +108,7 @@ public final class GameServer {
                     for (Artefact artefact : inventory) {
                         inventoryNameList.add(artefact.getName());
                     }
-                    return "Here's your inventory" + String.join(", ", inventoryNameList);
+                    return "Here's your inventory: " + String.join(", ", inventoryNameList);
 
                 case "get":
                     return getArtefact(player, currentLocation, tokens);
@@ -145,12 +126,35 @@ public final class GameServer {
                     if (action == null) {
                         return "I don't understand what you're trying to do.";
                     } else {
-                        return performActionOrHandleAmbiguity(action, tokens);
+                        return performAction(player, action);
                     }
             }
         }
         // Return a default message if no actions or commands matched
         return "Command not recognized.";
+    }
+
+    private String lookCurrentLocation(Location currentLocation) {
+        StringBuilder description = new StringBuilder("Welcome!\n");
+        description.append("This is ").append(currentLocation.getDescription()).append("\n");
+
+        // Append descriptions of artefacts, furniture, characters, and paths
+        for (Artefact artefact : currentLocation.getArtefacts()) {
+            description.append("In this place, you can see\n").append(artefact.getDescription()).append("\n");
+        }
+
+        for (Furniture furniture : currentLocation.getFurnitures()) {
+            description.append(furniture.getDescription()).append("\n");
+        }
+
+        for (Character character : currentLocation.getCharacters()) {
+            description.append(character.getDescription()).append("\n");
+        }
+
+        for (LocationPath path : currentLocation.getPaths()) {
+            description.append(path.getDescription()).append("\n");
+        }
+        return description.toString();
     }
 
     private String getArtefact(Player currentPlayer, Location currentLocation, List<String> tokens) {
@@ -253,7 +257,7 @@ public final class GameServer {
     public GameAction getMatchingAction(List<String> tokens) {
         Set<GameAction> potentialActions = new HashSet<>();
 
-        // Convert the token list to a set for quick lookup
+        // Convert the token list to a set for quick lookup, avoiding duplicate tokens e.g. lock lock with key
         Set<String> tokenSet = new HashSet<>(tokens);
 
         // Check each token as a potential trigger to gather all matching actions
@@ -263,7 +267,6 @@ public final class GameServer {
                 potentialActions.addAll(actionsForToken);
             }
         }
-
         // Filter out actions that don't match the remaining tokens
         potentialActions.removeIf(action -> !matchAction(tokenSet, action));
 
@@ -277,14 +280,21 @@ public final class GameServer {
         }
     }
 
+    // compare client input "tokens" with GameAction
     private boolean matchAction(Set<String> tokens, GameAction action) {
         List<String> required = action.getSubjects();
 
-        // Check all required subjects are present in the tokens
+        // Check if at least one required subject is present in the tokens
+        boolean hasRequiredSubject = false;
         for (String subject : required) {
-            if (!tokens.contains(subject)) {
-                return false;
+            if (tokens.contains(subject)) {
+                hasRequiredSubject = true;
+                break;
             }
+        }
+
+        if (!hasRequiredSubject) {
+            return false; // No required subject present
         }
 
         // Check no extraneous entities are present
@@ -293,21 +303,7 @@ public final class GameServer {
                 return false;
             }
         }
-
-        return true;
-    }
-
-    private String performActionOrHandleAmbiguity(GameAction action, List<String> tokens) {
-        // Check for ambiguity: Are there multiple valid actions matching the command?
-        Set<GameAction> validActions = new HashSet<>(actions.get(action.getTriggers().get(0))); // Assuming first trigger is the primary key
-        validActions.removeIf(a -> !matchAction(new HashSet<>(tokens), a));
-
-        /*if (validActions.size() > 1) {
-            return handleAmbiguousCommands(new ArrayList<>(validActions));
-        } else {
-            return performAction(action);
-        }*/
-        return "";
+        return true; // The action matches
     }
 
     private String handleAmbiguousCommands(List<GameAction> potentialActions) {
@@ -321,27 +317,80 @@ public final class GameServer {
         return response.toString();
     }
 
-     /*private String performAction(GameAction action) {
+    private String performAction(Player currentPlayer, GameAction action) {
+        Set<String> artefactsToConsume = new HashSet<>(action.getConsumed());
+        Set<String> artefactsToProduce = new HashSet<>(action.getProduced());
+
         // Consuming entities
-        for (String artefact : action.getConsumed()) {
-            // Remove item from player's inventory or location
-            player.getInventory().removeArtefact(artefact);
+        for (String artefactName : artefactsToConsume) {
+            Artefact artefact = isArtefactAvailable(currentPlayer, artefactName);
+
+            if (artefact != null) {
+                // Remove item from player's inventory or location
+                currentPlayer.removeArtefact(artefact);
+                // Optionally: add to storeroom or handle appropriately
+            } else {
+                return "Artefact '" + artefactName + "' not found in inventory or location.";
+            }
         }
 
         // Producing entities
-        for (String artefact : action.getProduced()) {
-            // Add item to player's inventory or location
-            player.getInventory().addArtefact(artefact);
-        }
+        for (String artefactName : artefactsToProduce) {
+            Artefact artefact = retrieveArtefactFromStoreroom(artefactName);
 
-        // Changing game state
-        for (String entity : action.getSubjects()) {
-            // Apply necessary game state changes, such as updating world state or unlocking locations
+            if (artefact != null) {
+                currentPlayer.addArtefact(artefact);
+            } else {
+                return "Artefact '" + artefactName + "' not found in storeroom.";
+            }
         }
 
         // Return narration or feedback to the user
         return action.getNarration();
-    }*/
+    }
+
+    private Artefact isArtefactAvailable(Player currentPlayer, String artefactName) {
+        // Check if the artefact is in the player's inventory
+        for (Artefact artefact : currentPlayer.getInventory()) {
+            if (artefact.getName().equalsIgnoreCase(artefactName)) {
+                return artefact; // Artefact found in inventory
+            }
+        }
+
+        // If not found, check the current location
+        for (Artefact artefact : currentPlayer.getCurrentLocation().getArtefacts()) {
+            if (artefact.getName().equalsIgnoreCase(artefactName)) {
+                return artefact; // Artefact found in location
+            }
+        }
+        return null; // Artefact not found in inventory or location
+    }
+
+    private Artefact retrieveArtefactFromStoreroom(String artefactName) {
+        // Locate the storeroom in the list of locations
+        Location storeroom = null;
+
+        for (Location location : locations) {
+            if (location.getName().equalsIgnoreCase("storeroom")) {
+                storeroom = location;
+                break;
+            }
+        }
+
+        // Check for the artefact in the storeroom
+        for (Artefact artefact : storeroom.getArtefacts()) {
+            if (artefact.getName().equalsIgnoreCase(artefactName)) {
+                // Artefact found, remove it from the storeroom and return it
+                storeroom.removeArtefact(artefact);
+                return artefact;
+            }
+        }
+
+        return null; // Artefact not found in storeroom
+    }
+
+
+
 
 
 

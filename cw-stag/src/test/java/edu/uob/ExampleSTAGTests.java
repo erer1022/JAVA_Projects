@@ -47,11 +47,14 @@ class ExampleSTAGTests {
   {
       String response;
       response = sendCommandToServer("simon: get potion");
+      System.out.println(response);
       response = sendCommandToServer("simon: inv");
+      System.out.println(response);
       response = response.toLowerCase();
 
       assertTrue(response.contains("potion"), "Did not see the potion in the inventory after an attempt was made to get it");
       response = sendCommandToServer("simon: look");
+      System.out.println(response);
       response = response.toLowerCase();
       assertFalse(response.contains("potion"), "Potion is still present in the room after an attempt was made to get it");
   }
@@ -62,6 +65,7 @@ class ExampleSTAGTests {
   {
       sendCommandToServer("simon: goto forest");
       String response = sendCommandToServer("simon: look");
+      System.out.println(response);
       response = response.toLowerCase();
       assertTrue(response.contains("key"), "Failed attempt to use 'goto' command to move to the forest - there is no key in the current location");
   }

@@ -9,7 +9,7 @@ public class LocationPath {
     }
 
     public String getDescription() {
-        return "Here's the path: " + fromLocation.getName() + " -> " + toLocation.getName();
+        return "Here's the path to the next Location: " + fromLocation.getName() + " -> " + toLocation.getName();
     }
 
     public Location getToLocation() {
