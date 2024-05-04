@@ -20,17 +20,14 @@ public class Player {
     public String getName() {
         return this.name;
     }
-    // Methods to handle the player's location
-    public void moveTo(Location newLocation) {
-        this.currentLocation = newLocation;
-    }
 
     public Location getCurrentLocation() {
         return currentLocation;
     }
 
-    public void resetLocation(Location nextLocation) {
-        this.currentLocation = nextLocation;
+    // Methods to handle the player's location
+    public void moveToLocation(Location newLocation) {
+        this.currentLocation = newLocation;
     }
 
     // Methods to handle the player's inventory
@@ -58,8 +55,8 @@ public class Player {
 
     public void heal(int amount) {
         health += amount;
-        if (health > 100) {
-            health = 100;
+        if (health > 3) {
+            health = 3;
         }
     }
 

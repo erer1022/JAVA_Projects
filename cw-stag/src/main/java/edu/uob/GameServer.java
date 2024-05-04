@@ -216,12 +216,12 @@ public final class GameServer {
             for (LocationPath path : paths) {
                 // Check if the path's destination matches the token (case-insensitive comparison)
                 if (path.getToLocation().getName().equalsIgnoreCase(token)) {
-                    Location nextLocation = path.getToLocation(); // Retrieve the next location
+                    Location toLocation = path.getToLocation(); // Retrieve the next location
 
                     // Set the player's current location to this new location
-                    currentPlayer.resetLocation(nextLocation);
+                    currentPlayer.moveToLocation(toLocation);
 
-                    return "You've successfully moved to " + nextLocation.getName();
+                    return "You've successfully moved to " + toLocation.getName();
                 }
             }
         }
@@ -344,53 +344,55 @@ public final class GameServer {
         List<String> entitiesToConsume = action.getConsumed();
         List<String> entitiesToProduce = action.getProduced();
 
-        if (isAllSubjectsAvailable(currentPlayer, action)) {
+        if (areAllSubjectsAvailable(currentPlayer, action)) {
             // remove from currentPlayer's inventory or from currentLocation and move to storeroom
-
             consumeEntity(currentPlayer, entitiesToConsume);
             // move the produced entity from storeroom to currentlocation
             produceEntity(currentPlayer, entitiesToProduce);
+            // Return narration or feedback to the user
+            return action.getNarration();
+        } else {
+            return "You need to find something before this action.";
         }
-
-        // Return narration or feedback to the user
-        return action.getNarration();
     }
 
-    private boolean isAllSubjectsAvailable(Player currentPlayer, GameAction action) {
-        // Convert player's inventory to a list of artefact names
-        List<String> playerInventory = currentPlayer.getInventory().stream()
-                .map(Artefact::getName)
-                .collect(Collectors.toList());
-
+    private boolean areAllSubjectsAvailable(Player currentPlayer, GameAction action) {
+        // Convert player's inventory to a list of entity names
+        List<String> playerInventory = getPlayerInventoryNames(currentPlayer);
         Location currentLocation = currentPlayer.getCurrentLocation();
-        List<String> currentLocationArtefacts = currentLocation.getArtefacts().stream()
-                .map(Artefact::getName)
-                .collect(Collectors.toList());
 
-        List<String> currentLocationFurnitures = currentLocation.getFurnitures().stream()
-                .map(Furniture::getName)
-                .collect(Collectors.toList());
+        // Get lists of entity names in the current location
+        List<String> currentLocationEntities = getCurrentLocationEntities(currentLocation);
 
-        List<String> currentLocationCharacters = currentLocation.getCharacters().stream()
-                .map(Character::getName)
-                .collect(Collectors.toList());
+        // Combine player's inventory and current location entities
+        Set<String> allEntities = new HashSet<>(playerInventory);
+        allEntities.addAll(currentLocationEntities);
 
-        //Check if subject entities that are acted upon all available
+        // Check if all required subjects are available
         List<String> requiredSubjects = action.getSubjects();
-
-        boolean allSubjectsAvailable = true;
-
-        for (String requiredSubject : requiredSubjects) {
-            if (!playerInventory.contains(requiredSubject)
-                    && !currentLocationArtefacts.contains(requiredSubject)
-                    && !currentLocationFurnitures.contains(requiredSubject)
-                    && !currentLocationCharacters.contains(requiredSubject)) {
-                allSubjectsAvailable = false;
-            }
-        }
-
-        return allSubjectsAvailable;
+        return requiredSubjects.stream().allMatch(allEntities::contains);
     }
+
+    private List<String> getPlayerInventoryNames(Player currentPlayer) {
+        return currentPlayer.getInventory().stream()
+                .map(GameEntity::getName)
+                .collect(Collectors.toList());
+    }
+
+    private List<String> getCurrentLocationEntities(Location currentLocation) {
+        List<String> currentLocationEntities = new ArrayList<>();
+        currentLocationEntities.addAll(currentLocation.getArtefacts().stream()
+                .map(GameEntity::getName)
+                .collect(Collectors.toList()));
+        currentLocationEntities.addAll(currentLocation.getFurnitures().stream()
+                .map(GameEntity::getName)
+                .collect(Collectors.toList()));
+        currentLocationEntities.addAll(currentLocation.getCharacters().stream()
+                .map(GameEntity::getName)
+                .collect(Collectors.toList()));
+        return currentLocationEntities;
+    }
+
 
     private void consumeEntity(Player currentPlayer, List<String> entitiesToConsume) {
         Location currentLocation = currentPlayer.getCurrentLocation();
@@ -403,12 +405,6 @@ public final class GameServer {
                 consumeFromLocation(currentPlayer, currentLocation, entity);
             }
         }
-    }
-
-    private List<String> getPlayerInventoryNames(Player currentPlayer) {
-        return currentPlayer.getInventory().stream()
-                .map(Artefact::getName)
-                .collect(Collectors.toList());
     }
 
     private void consumeFromPlayerInventory(Player currentPlayer, String entity) {
@@ -452,6 +448,9 @@ public final class GameServer {
         Location currentLocation = currentPlayer.getCurrentLocation();
 
         for (String entity : entitiesToProduce) {
+            if (entity.equals("health")) {
+                currentPlayer.heal(1);
+            }
             produceLocation(currentLocation, entity);
             moveEntityFromStoreroom(currentLocation, entity);
         }
