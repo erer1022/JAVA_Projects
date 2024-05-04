@@ -20,6 +20,7 @@ public final class GameServer {
     private final EntityParser entityParser;
     private final ActionParser actionParser;
     private List<Location> locations;
+    private Location startLocation;
     private Location storeroom = null;
     private List<Player> players = new ArrayList<>();;
 
@@ -51,6 +52,7 @@ public final class GameServer {
         try {
             List<Graph> sections = entityParser.parseEntitiesFromFile(entitiesFile);
             locations = entityParser.parseLocations(sections);
+            this.startLocation = locations.get(0);
             actions = actionParser.parseActionsFromFile(actionsFile);
 
             // Locate the storeroom in the list of locations
@@ -107,6 +109,10 @@ public final class GameServer {
         tokens = tokens.subList(1, tokens.size());
 
         for (String token : tokens) {
+            if (tokens.contains("and")) {
+                return "Composite commands (commands involving more than one activity) are NOT be supported.";
+            }
+
             switch (token) {
                 /* prints names and descriptions of entities in the current location and lists paths to other locations */
                 case "look":
@@ -131,6 +137,8 @@ public final class GameServer {
                 case "goto":
                     return goToNextLocation(player, currentLocation, tokens);
 
+                case "health":
+                    return player.getStatus();
 
                 default:
                     // Assume getMatchingAction is a method to determine the matching action based on tokens
@@ -168,9 +176,10 @@ public final class GameServer {
         StringBuilder description = new StringBuilder("Welcome!\n");
         description.append("This is ").append(currentLocation.getDescription()).append("\n");
 
+        description.append("In this place, you can see: ");
         // Append descriptions of artefacts, furniture, characters, and paths
         for (Artefact artefact : currentLocation.getArtefacts()) {
-            description.append("In this place, you can see\n").append(artefact.getDescription()).append("\n");
+            description.append(artefact.getDescription()).append("\n");
         }
 
         for (Furniture furniture : currentLocation.getFurnitures()) {
@@ -184,26 +193,50 @@ public final class GameServer {
         for (LocationPath path : currentLocation.getPaths()) {
             description.append(path.getDescription()).append("\n");
         }
+
+        if (players.size() > 1) {
+            description.append("There are multiple players: ");
+            for (Player player : players) {
+                description.append(player.getName()).append(" ");
+            }
+        }
+
         return description.toString();
     }
 
     private String getArtefact(Player currentPlayer, Location currentLocation, List<String> tokens) {
-        /* get the list of current location's artefacts */
         List<Artefact> currentLocationArtefacts = currentLocation.getArtefacts();
-        for(Artefact artefactToGet : currentLocationArtefacts) {
-            for(String token : tokens) {
-                /* if get xxx, the artefact do exist in the location */
-                if(artefactToGet.getName().equals(token)) {
-                    /* add the artefact to player's inventory */
-                    currentPlayer.addArtefact(artefactToGet);
-                    /* remove the artefact from the current location */
-                    currentLocation.removeArtefact(artefactToGet);
-                    return "You've successfully got the " + artefactToGet.getName();
+
+        // Counter to track the number of artifacts found
+        int artifactsFound = 0;
+
+        // Artefact to be obtained
+        Artefact artefactToGet = null;
+
+        // Find the artefact to get
+        for (Artefact artefact : currentLocationArtefacts) {
+            for (String token : tokens) {
+                // If the artefact exists in the location
+                if (artefact.getName().equals(token)) {
+                    artifactsFound++;
+                    artefactToGet = artefact;
                 }
             }
         }
-        return "There's no such artefact can be obtained or You can't get this.";
+
+        if (artifactsFound == 1 && artefactToGet != null) {
+            // Add the artefact to the player's inventory
+            currentPlayer.addArtefact(artefactToGet);
+            // Remove the artefact from the current location
+            currentLocation.removeArtefact(artefactToGet);
+            return "You've successfully got the " + artefactToGet.getName();
+        } else if (artifactsFound > 1) {
+            return "Multiple artifacts match the given command. Please be more specific.";
+        } else {
+            return "There's no such artifact that can be obtained.";
+        }
     }
+
 
     private String dropArtefact(Player currentPlayer, Location currentLocation, List<String> tokens) {
         List<Artefact> inventoryList = currentPlayer.getInventory();
@@ -343,11 +376,30 @@ public final class GameServer {
             consumeEntity(currentPlayer, entitiesToConsume);
             // move the produced entity from storeroom to currentlocation
             produceEntity(currentPlayer, entitiesToProduce);
+            if (currentPlayer.getHealth() == 0) {
+                resetPlayer(currentPlayer);
             // Return narration or feedback to the user
-            return action.getNarration();
+                return action.getNarration() + "\nyou died and lost all of your items, you must return to the start of the game";
+            } else {
+                return action.getNarration();
+            }
         } else {
             return "You need to find something before this action.";
         }
+    }
+
+    private void resetPlayer(Player currentPlayer) {
+        /* When a player's health runs out (i.e. when it becomes zero)
+           1. they should lose all of the items in their inventory (which are dropped in the location where they ran out of health).
+           2. The player should then be transported to the start location of the game
+           3. and their health level restored to full (i.e. 3). */
+
+        List<Artefact> itemsToLose = currentPlayer.getInventory();
+        for (Artefact item : itemsToLose) {
+            currentPlayer.getCurrentLocation().addArtefact(item);
+        }
+        currentPlayer.moveToLocation(startLocation);
+        currentPlayer.heal(3);
     }
 
     // Subjects of an action can be locations, characters or furniture
@@ -406,10 +458,11 @@ public final class GameServer {
     }
 
     private void consumeFromPlayerInventory(Player currentPlayer, String entity) {
-        for (Artefact artefact : currentPlayer.getInventory()) {
-            if (artefact.getName().equals(entity)) {
-                currentPlayer.removeArtefact(artefact);
-                storeroom.addArtefact(artefact);
+        for (Artefact inventory : currentPlayer.getInventory()) {
+            if (inventory.getName().equals(entity)) {
+                currentPlayer.removeArtefact(inventory);
+                storeroom.addArtefact(inventory);
+                break;
             }
         }
     }

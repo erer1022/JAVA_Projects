@@ -66,7 +66,7 @@ public class Player {
 
     // Utility method for displaying player's status
     public String getStatus() {
-        return "Name: " + name + ", Health: " + health + ", Location: " + currentLocation.getName();
+        return "Name: " + name + ", current health level: " + health;
     }
 }
 
