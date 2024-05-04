@@ -146,6 +146,24 @@ public final class GameServer {
         return "Command not recognized.";
     }
 
+    /* Convert to lowercase and Strip out punctuation */
+    private String preprocessCommand(String command) {
+        // Split the string at the first occurrence of a colon
+        String[] parts = command.split(":", 2);
+
+        // If there are at least two parts, handle them
+        if (parts.length == 2) {
+            String playerName = parts[0].trim();  // The player's name (before the colon)
+            String commandPart = parts[1].toLowerCase().replaceAll("[^a-z0-9\\s]", "").trim();  // The command part after the colon
+
+            // Combine them back together
+            return playerName + ": " + commandPart;
+        }
+
+        // If no colon is found, just sanitize the entire command
+        return command.toLowerCase().replaceAll("[^a-z0-9\\s]", "");
+    }
+
     private String lookCurrentLocation(Location currentLocation) {
         StringBuilder description = new StringBuilder("Welcome!\n");
         description.append("This is ").append(currentLocation.getDescription()).append("\n");
@@ -184,7 +202,7 @@ public final class GameServer {
                 }
             }
         }
-        return "There's no such artefact can be obtained.";
+        return "There's no such artefact can be obtained or You can't get this.";
     }
 
     private String dropArtefact(Player currentPlayer, Location currentLocation, List<String> tokens) {
@@ -229,10 +247,6 @@ public final class GameServer {
         return "You can't go there from here.";
     }
 
-
-
-
-
     private Player getOrCreatePlayer(String playerName) {
         // Check if the player already exists
         Player player = players.stream().filter(p -> p.getName().equals(playerName)).findFirst().orElse(null);
@@ -242,27 +256,7 @@ public final class GameServer {
             player = new Player(playerName, locations.get(0));
             players.add(player);
         }
-
         return player;
-    }
-
-
-    /* Convert to lowercase and Strip out punctuation */
-    private String preprocessCommand(String command) {
-        // Split the string at the first occurrence of a colon
-        String[] parts = command.split(":", 2);
-
-        // If there are at least two parts, handle them
-        if (parts.length == 2) {
-            String playerName = parts[0].trim();  // The player's name (before the colon)
-            String commandPart = parts[1].toLowerCase().replaceAll("[^a-z0-9\\s]", "").trim();  // The command part after the colon
-
-            // Combine them back together
-            return playerName + ": " + commandPart;
-        }
-
-        // If no colon is found, just sanitize the entire command
-        return command.toLowerCase().replaceAll("[^a-z0-9\\s]", "");
     }
 
 
@@ -289,7 +283,6 @@ public final class GameServer {
                 }
             }
         }
-
         // Filter out actions that don't match the remaining tokens
         potentialActions.removeIf(action -> !matchAction(tokenSet, action));
 
@@ -306,7 +299,6 @@ public final class GameServer {
     // compare client input "tokens" with GameAction
     private boolean matchAction(Set<String> tokens, GameAction action) {
         List<String> required = action.getSubjects();
-
         // Check if at least one required subject is present in the tokens
         boolean hasRequiredSubject = false;
         for (String subject : required) {
@@ -320,12 +312,14 @@ public final class GameServer {
             return false; // No required subject present
         }
 
+        /*
         // Check no extraneous entities are present
         for (String token : tokens) {
             if (!required.contains(token) && !action.getTriggers().contains(token) && !action.getConsumed().contains(token) && !action.getProduced().contains(token)) {
                 return false;
             }
-        }
+        }*/
+
         return true; // The action matches
     }
 
@@ -345,7 +339,7 @@ public final class GameServer {
         List<String> entitiesToProduce = action.getProduced();
 
         if (areAllSubjectsAvailable(currentPlayer, action)) {
-            // remove from currentPlayer's inventory or from currentLocation and move to storeroom
+            // Consume entities from the player's inventory or current location and move to storeroom
             consumeEntity(currentPlayer, entitiesToConsume);
             // move the produced entity from storeroom to currentlocation
             produceEntity(currentPlayer, entitiesToProduce);
@@ -356,6 +350,7 @@ public final class GameServer {
         }
     }
 
+    // Subjects of an action can be locations, characters or furniture
     private boolean areAllSubjectsAvailable(Player currentPlayer, GameAction action) {
         // Convert player's inventory to a list of entity names
         List<String> playerInventory = getPlayerInventoryNames(currentPlayer);
@@ -381,12 +376,15 @@ public final class GameServer {
 
     private List<String> getCurrentLocationEntities(Location currentLocation) {
         List<String> currentLocationEntities = new ArrayList<>();
+        // Add all of the artefacts of the current location
         currentLocationEntities.addAll(currentLocation.getArtefacts().stream()
                 .map(GameEntity::getName)
                 .collect(Collectors.toList()));
+        // Add all of the furnitures of the current location
         currentLocationEntities.addAll(currentLocation.getFurnitures().stream()
                 .map(GameEntity::getName)
                 .collect(Collectors.toList()));
+        // Add all of the characters of the current location
         currentLocationEntities.addAll(currentLocation.getCharacters().stream()
                 .map(GameEntity::getName)
                 .collect(Collectors.toList()));

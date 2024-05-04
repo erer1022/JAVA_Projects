@@ -76,17 +76,18 @@ class ExampleSTAGTests {
   {
       String response = sendCommandToServer("simon: look");
       response = response.toLowerCase();
-      System.out.println(response);
+      //System.out.println(response);
       sendCommandToServer("simon: get axe");
-      sendCommandToServer("simon: get potion");
+      String response0 = sendCommandToServer("simon: get potion and open trapdoor");
+      System.out.println("response0: " + response0);
       String response1 = sendCommandToServer("simon: inv");
-      System.out.println("response1: " + response1);
+      //System.out.println("response1: " + response1);
       sendCommandToServer("simon: goto forest");
       sendCommandToServer("simon: look");
-      String response2 = sendCommandToServer("simon: chop tree");
-      System.out.println("response2: " + response2);
+      String response2 = sendCommandToServer("simon: chop tree with axe");
+      //System.out.println("response2: " + response2);
       String response3 = sendCommandToServer("simon: look");
-      System.out.println("response3: " + response3);
+      //System.out.println("response3: " + response3);
 
   }
 
