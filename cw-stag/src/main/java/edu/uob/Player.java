@@ -14,7 +14,7 @@ public class Player {
         this.name = name;
         this.currentLocation = startLocation;
         this.inventory = new ArrayList<>();
-        this.health = 100;  // Assuming a max health of 100
+        this.health = 3;  // Assuming a max health of 3
     }
 
     public String getName() {
@@ -38,7 +38,8 @@ public class Player {
         inventory.add(artefact);
     }
 
-    public void removeArtefact(Artefact artefact) { inventory.remove(artefact);
+    public void removeArtefact(Artefact artefact) {
+        inventory.remove(artefact);
     }
 
     public List<Artefact> getInventory() {

@@ -71,5 +71,19 @@ class ExampleSTAGTests {
   }
 
   // Add more unit tests or integration tests here.
+  @Test
+  void testTrigger()
+  {
+      String response = sendCommandToServer("simon: look");
+      response = response.toLowerCase();
+      //System.out.println(response);
+      sendCommandToServer("simon: get axe");
+      sendCommandToServer("simon: get potion");
+      String response1 = sendCommandToServer("simon: inv");
+      sendCommandToServer("simon: goto forest");
+      sendCommandToServer("simon: look");
+      String response2 = sendCommandToServer("simon: chop tree");
+      System.out.println(response2);
+  }
 
 }

@@ -12,6 +12,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public final class GameServer {
 
@@ -19,6 +20,7 @@ public final class GameServer {
     private final EntityParser entityParser;
     private final ActionParser actionParser;
     private List<Location> locations;
+    private Location storeroom = null;
     private List<Player> players = new ArrayList<>();;
 
 
@@ -50,6 +52,16 @@ public final class GameServer {
             List<Graph> sections = entityParser.parseEntitiesFromFile(entitiesFile);
             locations = entityParser.parseLocations(sections);
             actions = actionParser.parseActionsFromFile(actionsFile);
+
+            // Locate the storeroom in the list of locations
+            if (storeroom == null) {
+                for (Location location : locations) {
+                    if (location.getName().equalsIgnoreCase("storeroom")) {
+                        storeroom = location;
+                        break;
+                    }
+                }
+            }
 
         } catch (IOException e) {
             // Handle the exceptions appropriately
@@ -256,17 +268,28 @@ public final class GameServer {
 
     public GameAction getMatchingAction(List<String> tokens) {
         Set<GameAction> potentialActions = new HashSet<>();
-
         // Convert the token list to a set for quick lookup, avoiding duplicate tokens e.g. lock lock with key
         Set<String> tokenSet = new HashSet<>(tokens);
 
         // Check each token as a potential trigger to gather all matching actions
         for (String token : tokenSet) {
-            HashSet<GameAction> actionsForToken = actions.get(token);
-            if (actionsForToken != null) {
-                potentialActions.addAll(actionsForToken);
+            for (Map.Entry<String, HashSet<GameAction>> entry : actions.entrySet()) {
+                String actionToken = entry.getKey();
+                // Check if the token matches the action token (key)
+                if (actionToken.contains(token)) {
+                    HashSet<GameAction> actionsForToken = entry.getValue();
+
+                    // Check if the token matches any trigger of the action
+                    for (GameAction action : actionsForToken) {
+                        if (action.getTriggers().contains(token)) {
+                            potentialActions.add(action);
+                            break; // No need to continue checking triggers for this action
+                        }
+                    }
+                }
             }
         }
+
         // Filter out actions that don't match the remaining tokens
         potentialActions.removeIf(action -> !matchAction(tokenSet, action));
 
@@ -318,90 +341,157 @@ public final class GameServer {
     }
 
     private String performAction(Player currentPlayer, GameAction action) {
-        Set<String> artefactsToConsume = new HashSet<>(action.getConsumed());
-        Set<String> artefactsToProduce = new HashSet<>(action.getProduced());
+        List<String> entitiesToConsume = action.getConsumed();
+        List<String> entitiesToProduce = action.getProduced();
 
-        // Consuming entities
-        for (String artefactName : artefactsToConsume) {
-            Artefact artefact = isArtefactAvailable(currentPlayer, artefactName);
+        if (isAllSubjectsAvailable(currentPlayer, action)) {
+            // remove from currentPlayer's inventory or from currentLocation and move to storeroom
 
-            if (artefact != null) {
-                // Remove item from player's inventory or location
-                currentPlayer.removeArtefact(artefact);
-                // Optionally: add to storeroom or handle appropriately
-            } else {
-                return "Artefact '" + artefactName + "' not found in inventory or location.";
-            }
-        }
-
-        // Producing entities
-        for (String artefactName : artefactsToProduce) {
-            Artefact artefact = retrieveArtefactFromStoreroom(artefactName);
-
-            if (artefact != null) {
-                currentPlayer.addArtefact(artefact);
-            } else {
-                return "Artefact '" + artefactName + "' not found in storeroom.";
-            }
+            consumeEntity(currentPlayer, entitiesToConsume);
+            // move the produced entity from storeroom to currentlocation
+            produceEntity(currentPlayer, entitiesToProduce);
         }
 
         // Return narration or feedback to the user
         return action.getNarration();
     }
 
-    private Artefact isArtefactAvailable(Player currentPlayer, String artefactName) {
-        // Check if the artefact is in the player's inventory
+    private boolean isAllSubjectsAvailable(Player currentPlayer, GameAction action) {
+        // Convert player's inventory to a list of artefact names
+        List<String> playerInventory = currentPlayer.getInventory().stream()
+                .map(Artefact::getName)
+                .collect(Collectors.toList());
+
+        Location currentLocation = currentPlayer.getCurrentLocation();
+        List<String> currentLocationArtefacts = currentLocation.getArtefacts().stream()
+                .map(Artefact::getName)
+                .collect(Collectors.toList());
+
+        List<String> currentLocationFurnitures = currentLocation.getFurnitures().stream()
+                .map(Furniture::getName)
+                .collect(Collectors.toList());
+
+        List<String> currentLocationCharacters = currentLocation.getCharacters().stream()
+                .map(Character::getName)
+                .collect(Collectors.toList());
+
+        //Check if subject entities that are acted upon all available
+        List<String> requiredSubjects = action.getSubjects();
+
+        boolean allSubjectsAvailable = true;
+
+        for (String requiredSubject : requiredSubjects) {
+            if (!playerInventory.contains(requiredSubject)
+                    && !currentLocationArtefacts.contains(requiredSubject)
+                    && !currentLocationFurnitures.contains(requiredSubject)
+                    && !currentLocationCharacters.contains(requiredSubject)) {
+                allSubjectsAvailable = false;
+            }
+        }
+
+        return allSubjectsAvailable;
+    }
+
+    private void consumeEntity(Player currentPlayer, List<String> entitiesToConsume) {
+        Location currentLocation = currentPlayer.getCurrentLocation();
+        List<String> playerInventory = getPlayerInventoryNames(currentPlayer);
+
+        for (String entity : entitiesToConsume) {
+            if (playerInventory.contains(entity)) {
+                consumeFromPlayerInventory(currentPlayer, entity);
+            } else {
+                consumeFromLocation(currentPlayer, currentLocation, entity);
+            }
+        }
+    }
+
+    private List<String> getPlayerInventoryNames(Player currentPlayer) {
+        return currentPlayer.getInventory().stream()
+                .map(Artefact::getName)
+                .collect(Collectors.toList());
+    }
+
+    private void consumeFromPlayerInventory(Player currentPlayer, String entity) {
         for (Artefact artefact : currentPlayer.getInventory()) {
-            if (artefact.getName().equalsIgnoreCase(artefactName)) {
-                return artefact; // Artefact found in inventory
+            if (artefact.getName().equals(entity)) {
+                currentPlayer.removeArtefact(artefact);
+                storeroom.addArtefact(artefact);
             }
         }
-
-        // If not found, check the current location
-        for (Artefact artefact : currentPlayer.getCurrentLocation().getArtefacts()) {
-            if (artefact.getName().equalsIgnoreCase(artefactName)) {
-                return artefact; // Artefact found in location
-            }
-        }
-        return null; // Artefact not found in inventory or location
     }
 
-    private Artefact retrieveArtefactFromStoreroom(String artefactName) {
-        // Locate the storeroom in the list of locations
-        Location storeroom = null;
-
+    private void consumeFromLocation(Player currentPlayer, Location currentLocation, String entity) {
+        for (Artefact artefact : currentLocation.getArtefacts()) {
+            if (artefact.getName().equals(entity)) {
+                currentLocation.removeArtefact(artefact);
+                storeroom.addArtefact(artefact);
+                return;
+            }
+        }
+        for (Furniture furniture : currentLocation.getFurnitures()) {
+            if (furniture.getName().equals(entity)) {
+                currentLocation.removeFurniture(furniture);
+                storeroom.addFurniture(furniture);
+                return;
+            }
+        }
         for (Location location : locations) {
-            if (location.getName().equalsIgnoreCase("storeroom")) {
-                storeroom = location;
-                break;
+            if (location.getName().equals(entity)) {
+                LocationPath pathToRemove = new LocationPath(currentLocation, location);
+                currentLocation.removePath(pathToRemove);
+                return;
             }
         }
-
-        // Check for the artefact in the storeroom
-        for (Artefact artefact : storeroom.getArtefacts()) {
-            if (artefact.getName().equalsIgnoreCase(artefactName)) {
-                // Artefact found, remove it from the storeroom and return it
-                storeroom.removeArtefact(artefact);
-                return artefact;
-            }
+        if (entity.equals("health")) {
+            currentPlayer.takeDamage(1);
         }
-
-        return null; // Artefact not found in storeroom
     }
 
 
+    private void produceEntity(Player currentPlayer, List<String> entitiesToProduce) {
+        Location currentLocation = currentPlayer.getCurrentLocation();
 
+        for (String entity : entitiesToProduce) {
+            produceLocation(currentLocation, entity);
+            moveEntityFromStoreroom(currentLocation, entity);
+        }
+    }
 
+    private void produceLocation(Location currentLocation, String entity) {
+        for (Location location : locations) {
+            if (location.getName().equals(entity)) {
+                LocationPath pathToAdd = new LocationPath(currentLocation, location);
+                currentLocation.addPath(pathToAdd);
+                return;
+            }
+        }
+    }
 
+    private void moveEntityFromStoreroom(Location currentLocation, String entity) {
+        for (Artefact artefact : storeroom.getArtefacts()) {
+            if (artefact.getName().equals(entity)) {
+                storeroom.removeArtefact(artefact);
+                currentLocation.addArtefact(artefact);
+                return;
+            }
+        }
 
+        for (Furniture furniture : storeroom.getFurnitures()) {
+            if (furniture.getName().equals(entity)) {
+                storeroom.removeFurniture(furniture);
+                currentLocation.addFurniture(furniture);
+                return;
+            }
+        }
 
-
-
-
-
-
-
-
+        for (Character character : storeroom.getCharacters()) {
+            if (character.getName().equals(entity)) {
+                storeroom.removeCharacter(character);
+                currentLocation.addCharacter(character);
+                return;
+            }
+        }
+    }
 
 
 
