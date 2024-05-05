@@ -91,8 +91,8 @@ class ExampleSTAGTests {
       System.out.println("response2: " + response2);
 
       //TODO
-      //String response3 = sendCommandToServer("simon: drop potion and key");
-      //System.out.println("response3: " + response3);
+      String response3 = sendCommandToServer("simon: drop axe key");
+      System.out.println("response3: " + response3);
 
       // Extraneous entity and composite command
       String response5 = sendCommandToServer("simon: get potion, cut down the tree");

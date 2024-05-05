@@ -84,7 +84,6 @@ public final class GameServer {
     public String handleCommand(String command) {
         // Preprocess the command to a normalized form
         String processedCommand = preprocessCommand(command);
-
         String playerName = "DefaultPlayer";  // Default player name
 
         if (processedCommand.contains(":")) {
@@ -100,14 +99,13 @@ public final class GameServer {
 
         // Split the processed command into tokens
         List<String> tokens = Arrays.asList(processedCommand.split("\\s+"));
-
         // Remove the first token
         tokens = tokens.subList(1, tokens.size());
+
 
         if (tokens.contains("and")) {
             return "A single command can only be used to perform a single built-in command or single game action";
         }
-
         // Check no extraneous entities are present
         if(areThereExtraneousEntities(player, tokens)) {
             return "The action can't be performed, you may use extraneous entity.";
@@ -121,7 +119,7 @@ public final class GameServer {
                 .filter(basicCommands::contains)
                 .collect(Collectors.toList());
 
-        // else, try to find match action && detect if more than one action in the incoming command
+        // else, try to find other match action
         Set<GameAction> potentialActions = getMatchingAction(tokens);
         if (tokens.size() == 1 && potentialActions.size() > 1) {
             return "there is more than one valid action possible - which one do you want to perform ?"; // Handle ambiguity
@@ -253,7 +251,6 @@ public final class GameServer {
 
         // Counter to track the number of artifacts found
         int artifactsFound = 0;
-
         // Artefact to be obtained
         Artefact artefactToGet = null;
 
@@ -285,23 +282,34 @@ public final class GameServer {
     private String dropArtefact(Player currentPlayer, Location currentLocation, List<String> tokens) {
         List<Artefact> inventoryList = currentPlayer.getInventory();
 
-        for (String token : tokens) {
-            // Find the artefact that matches the token
-            Artefact artefactToDrop = inventoryList.stream()
-                    .filter(artefact -> artefact.getName().equalsIgnoreCase(token))
-                    .findFirst()
-                    .orElse(null);
+        // Counter to track the number of artefacts found to drop
+        int artefactsToDropCount = 0;
+        // Artefact to be dropped
+        Artefact artefactToDrop = null;
 
-            if (artefactToDrop != null) {
-                // Remove the artefact from the player's inventory
-                currentPlayer.removeArtefact(artefactToDrop);
-                // Add it back to the current location
-                currentLocation.addArtefact(artefactToDrop);
-                return "You've successfully dropped the " + artefactToDrop.getName();
+        // Iterate through the tokens to find a matching artefact in the inventory
+        for (String token : tokens) {
+            for (Artefact artefact : inventoryList) {
+                if (artefact.getName().equalsIgnoreCase(token)) {
+                    artefactsToDropCount++;
+                    artefactToDrop = artefact;
+                }
             }
         }
-        // If no matching artefact was found to drop
-        return "You can't drop this artefact, because you don't have it.";
+
+        // Handling based on the count of artefacts found to drop
+        if (artefactsToDropCount == 1 && artefactToDrop != null) {
+            // Remove the artefact from the player's inventory
+            currentPlayer.removeArtefact(artefactToDrop);
+            // Add it back to the current location
+            currentLocation.addArtefact(artefactToDrop);
+            return "You've successfully dropped the " + artefactToDrop.getName();
+        } else if (artefactsToDropCount > 1) {
+            return "Multiple artefacts match the given command. Please specify exactly one artefact to drop.";
+        } else {
+            // If no matching artefact was found in the inventory
+            return "You can't drop this artefact, because you don't have it.";
+        }
     }
 
     public String goToNextLocation(Player currentPlayer, Location currentLocation, List<String> tokens) {
