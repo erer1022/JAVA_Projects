@@ -36,12 +36,12 @@ public final class GameServer {
     }
 
     /**
-    * Do not change the following method signature or we won't be able to mark your submission
-    * Instanciates a new server instance, specifying a game with some configuration files
-    *
-    * @param entitiesFile The game configuration file containing all game entities to use in your game
-    * @param actionsFile The game configuration file containing all game actions to use in your game
-    */
+     * Do not change the following method signature or we won't be able to mark your submission
+     * Instanciates a new server instance, specifying a game with some configuration files
+     *
+     * @param entitiesFile The game configuration file containing all game entities to use in your game
+     * @param actionsFile The game configuration file containing all game actions to use in your game
+     */
     public GameServer(File entitiesFile, File actionsFile) {
         // TODO implement your server logic here
 
@@ -74,11 +74,11 @@ public final class GameServer {
     }
 
     /**
-    * Do not change the following method signature or we won't be able to mark your submission
-    * This method handles all incoming game commands and carries out the corresponding actions.</p>
-    *
-    * @param command The incoming command to be processed
-    */
+     * Do not change the following method signature or we won't be able to mark your submission
+     * This method handles all incoming game commands and carries out the corresponding actions.</p>
+     *
+     * @param command The incoming command to be processed
+     */
 
 
     public String handleCommand(String command) {
@@ -148,38 +148,38 @@ public final class GameServer {
     }
 
     private String performBasicCommand(Player player, List<String> tokens, String basicCommand) {
-            switch (basicCommand) {
-                /* prints names and descriptions of entities in the current location and lists paths to other locations */
-                case "look":
-                    return lookCurrentLocation(player.getCurrentLocation());
+        switch (basicCommand) {
+            /* prints names and descriptions of entities in the current location and lists paths to other locations */
+            case "look":
+                return lookCurrentLocation(player.getCurrentLocation());
 
-                /* inventory (or inv for short) lists all of the artefacts currently being carried by the player */
-                case "inventory":
-                case "inv":
-                    List<Artefact> inventory = player.getInventory();
-                    List<String> inventoryNameList = new ArrayList<>();
-                    for (Artefact artefact : inventory) {
-                        inventoryNameList.add(artefact.getName());
-                    }
-                    return "Here's your inventory: " + String.join(", ", inventoryNameList);
+            /* inventory (or inv for short) lists all of the artefacts currently being carried by the player */
+            case "inventory":
+            case "inv":
+                List<Artefact> inventory = player.getInventory();
+                List<String> inventoryNameList = new ArrayList<>();
+                for (Artefact artefact : inventory) {
+                    inventoryNameList.add(artefact.getName());
+                }
+                return "Here's your inventory: " + String.join(", ", inventoryNameList);
 
-                case "get":
-                    return getArtefact(player, player.getCurrentLocation(), tokens);
+            case "get":
+                return getArtefact(player, player.getCurrentLocation(), tokens);
 
-                case "drop":
-                    return dropArtefact(player, player.getCurrentLocation(), tokens);
+            case "drop":
+                return dropArtefact(player, player.getCurrentLocation(), tokens);
 
-                case "goto":
-                    return goToNextLocation(player, player.getCurrentLocation(), tokens);
+            case "goto":
+                return goToNextLocation(player, player.getCurrentLocation(), tokens);
 
-                case "health":
-                    return player.getStatus();
+            case "health":
+                return player.getStatus();
 
-                default:
-                    // Return a default message if no actions or commands matched
-                    return "Command not recognized.";
+            default:
+                // Return a default message if no actions or commands matched
+                return "Command not recognized.";
 
-            }
+        }
     }
 
     /* Convert to lowercase and Strip out punctuation */
@@ -421,7 +421,7 @@ public final class GameServer {
             produceEntity(currentPlayer, entitiesToProduce);
             if (currentPlayer.getHealth() == 0) {
                 resetPlayer(currentPlayer);
-            // Return narration or feedback to the user
+                // Return narration or feedback to the user
                 return action.getNarration() + "\nyou died and lost all of your items, you must return to the start of the game";
             } else {
                 return action.getNarration();
@@ -437,10 +437,15 @@ public final class GameServer {
            2. The player should then be transported to the start location of the game
            3. and their health level restored to full (i.e. 3). */
 
-        List<Artefact> itemsToLose = currentPlayer.getInventory();
+        // Make a copy of the inventory items to avoid ConcurrentModificationException
+        List<Artefact> itemsToLose = new ArrayList<>(currentPlayer.getInventory());
+        Location currentLocation = currentPlayer.getCurrentLocation();
+
         for (Artefact item : itemsToLose) {
-            currentPlayer.getCurrentLocation().addArtefact(item);
+            currentPlayer.removeArtefact(item);
+            currentLocation.addArtefact(item);
         }
+
         currentPlayer.moveToLocation(startLocation);
         currentPlayer.heal(3);
     }
@@ -616,12 +621,12 @@ public final class GameServer {
 
 
     /**
-    * Do not change the following method signature or we won't be able to mark your submission
-    * Starts a *blocking* socket server listening for new connections.
-    *
-    * @param portNumber The port to listen on.
-    * @throws IOException If any IO related operation fails.
-    */
+     * Do not change the following method signature or we won't be able to mark your submission
+     * Starts a *blocking* socket server listening for new connections.
+     *
+     * @param portNumber The port to listen on.
+     * @throws IOException If any IO related operation fails.
+     */
     public void blockingListenOn(int portNumber) throws IOException {
         try (ServerSocket s = new ServerSocket(portNumber)) {
             System.out.println("Server listening on port " + portNumber);
@@ -636,16 +641,16 @@ public final class GameServer {
     }
 
     /**
-    * Do not change the following method signature or we won't be able to mark your submission
-    * Handles an incoming connection from the socket server.
-    *
-    * @param serverSocket The client socket to read/write from.
-    * @throws IOException If any IO related operation fails.
-    */
+     * Do not change the following method signature or we won't be able to mark your submission
+     * Handles an incoming connection from the socket server.
+     *
+     * @param serverSocket The client socket to read/write from.
+     * @throws IOException If any IO related operation fails.
+     */
     private void blockingHandleConnection(ServerSocket serverSocket) throws IOException {
         try (Socket s = serverSocket.accept();
-        BufferedReader reader = new BufferedReader(new InputStreamReader(s.getInputStream()));
-        BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(s.getOutputStream()))) {
+             BufferedReader reader = new BufferedReader(new InputStreamReader(s.getInputStream()));
+             BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(s.getOutputStream()))) {
             System.out.println("Connection established");
             String incomingCommand = reader.readLine();
             if(incomingCommand != null) {
