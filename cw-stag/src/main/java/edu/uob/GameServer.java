@@ -101,8 +101,8 @@ public final class GameServer {
         // Split the processed command into tokens
         List<String> tokens = Arrays.asList(processedCommand.split("\\s+"));
 
-        if (tokens.isEmpty()) {
-            return "Command not recognized.";
+        if (tokens.contains("and")) {
+            return "A single command can only be used to perform a single built-in command or single game action";
         }
 
         // Remove the first token
@@ -124,13 +124,20 @@ public final class GameServer {
             return "Ambiguous command: multiple basic commands detected.";
         }
 
-
         // else, try to find match action && detect if more than one action in the incoming command
-        GameAction action = getMatchingAction(tokens);
-        if (action == null) {
+
+        Set<GameAction> potentialActions = getMatchingAction(tokens);
+        if (tokens.size() == 1 && potentialActions.size() > 1) {
+            return "there is more than one valid action possible - which one do you want to perform ?"; // Handle ambiguity
+        }
+        Set<String> tokenSet = new HashSet<>(tokens);
+        // Filter out actions that don't match the remaining tokens
+        potentialActions.removeIf(action -> !matchAction(tokenSet, action));
+
+        if(potentialActions.size() == 0){
             return "I don't understand what you're trying to do.";
         } else {
-            return performAction(player, action);
+             return performAction(player, potentialActions.iterator().next());
         }
     }
 
@@ -322,7 +329,7 @@ public final class GameServer {
     }
 
 
-    public GameAction getMatchingAction(List<String> tokens) {
+    public Set<GameAction> getMatchingAction(List<String> tokens) {
         Set<GameAction> potentialActions = new HashSet<>();
         // Convert the token list to a set for quick lookup, avoiding duplicate tokens e.g. lock lock with key
         Set<String> tokenSet = new HashSet<>(tokens);
@@ -331,31 +338,20 @@ public final class GameServer {
         for (String token : tokenSet) {
             for (Map.Entry<String, HashSet<GameAction>> entry : actions.entrySet()) {
                 String actionToken = entry.getKey();
+
                 // Check if the token matches the action token (key)
                 if (actionToken.contains(token)) {
                     HashSet<GameAction> actionsForToken = entry.getValue();
-
                     // Check if the token matches any trigger of the action
                     for (GameAction action : actionsForToken) {
                         if (action.getTriggers().contains(token)) {
                             potentialActions.add(action);
-                            break; // No need to continue checking triggers for this action
                         }
                     }
                 }
             }
         }
-        // Filter out actions that don't match the remaining tokens
-        potentialActions.removeIf(action -> !matchAction(tokenSet, action));
-
-        if (potentialActions.size() == 0) {
-            return null; // No matching action found
-        } else if (potentialActions.size() > 1) {
-            handleAmbiguousCommands(new ArrayList<>(potentialActions)); // Handle ambiguity
-            return null;
-        } else {
-            return potentialActions.iterator().next(); // Return the single matching action
-        }
+        return potentialActions;
     }
 
     // compare client input "tokens" with GameAction
@@ -383,17 +379,6 @@ public final class GameServer {
         }*/
 
         return true; // The action matches
-    }
-
-    private String handleAmbiguousCommands(List<GameAction> potentialActions) {
-        StringBuilder response = new StringBuilder("There is more than one valid action:\n");
-
-        for (GameAction action : potentialActions) {
-            response.append("- ").append(action.getNarration()).append("\n");
-        }
-
-        response.append("Please clarify your command.");
-        return response.toString();
     }
 
     private String performAction(Player currentPlayer, GameAction action) {
