@@ -78,19 +78,19 @@ class ExampleSTAGTests {
       response = response.toLowerCase();
 
       // Composite Commands
-      //String response4 = sendCommandToServer("simon: get axe and potion");
-
+      String response4 = sendCommandToServer("simon: get axe and look");
+      System.out.println("response4: " + response4);
       //sendCommandToServer("simon: get axe");
-      sendCommandToServer("simon: goto forest");
+      //sendCommandToServer("simon: goto forest");
       // Decorated Commands
       //String response5 = sendCommandToServer("simon: please chop the tree using the axe");
 
-      sendCommandToServer("simon: get key");
+      sendCommandToServer("simon: get key and potion");
       String response6 = sendCommandToServer("simon: goto cabin");
 
       // Partial Commands
       String response1 = sendCommandToServer("simon: open trapdoor");
-      System.out.println("response1: " + response1);
+      //System.out.println("response1: " + response1);
 
       /*String response0 = sendCommandToServer("simon: get potion and open trapdoor");
       //System.out.println("response0: " + response0);

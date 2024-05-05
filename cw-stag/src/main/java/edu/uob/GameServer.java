@@ -107,16 +107,38 @@ public final class GameServer {
 
         // Remove the first token
         tokens = tokens.subList(1, tokens.size());
+        // List of basic commands
+        List<String> basicCommands = Arrays.asList("look", "inventory", "inv", "get", "drop", "goto", "health");
 
-        for (String token : tokens) {
-            if (tokens.contains("and")) {
-                return "Composite commands (commands involving more than one activity) are NOT be supported.";
-            }
+        // Check for any basic command in tokens
+        List<String> foundBasicCommands = tokens.stream()
+                .filter(basicCommands::contains)
+                .collect(Collectors.toList());
 
-            switch (token) {
+        // If tokens contains basic command && only one basic command  --> perform basic commands
+        if (foundBasicCommands.size() == 1) {
+            // Execute the basic command if exactly one is found
+            return performBasicCommand(player, tokens, foundBasicCommands.get(0));
+        } else if (foundBasicCommands.size() > 1) {
+            // More than one basic command found
+            return "Ambiguous command: multiple basic commands detected.";
+        }
+
+
+        // else, try to find match action && detect if more than one action in the incoming command
+        GameAction action = getMatchingAction(tokens);
+        if (action == null) {
+            return "I don't understand what you're trying to do.";
+        } else {
+            return performAction(player, action);
+        }
+    }
+
+    private String performBasicCommand(Player player, List<String> tokens, String basicCommand) {
+            switch (basicCommand) {
                 /* prints names and descriptions of entities in the current location and lists paths to other locations */
                 case "look":
-                    return lookCurrentLocation(currentLocation);
+                    return lookCurrentLocation(player.getCurrentLocation());
 
                 /* inventory (or inv for short) lists all of the artefacts currently being carried by the player */
                 case "inventory":
@@ -129,29 +151,22 @@ public final class GameServer {
                     return "Here's your inventory: " + String.join(", ", inventoryNameList);
 
                 case "get":
-                    return getArtefact(player, currentLocation, tokens);
+                    return getArtefact(player, player.getCurrentLocation(), tokens);
 
                 case "drop":
-                    return dropArtefact(player, currentLocation, tokens);
+                    return dropArtefact(player, player.getCurrentLocation(), tokens);
 
                 case "goto":
-                    return goToNextLocation(player, currentLocation, tokens);
+                    return goToNextLocation(player, player.getCurrentLocation(), tokens);
 
                 case "health":
                     return player.getStatus();
 
                 default:
-                    // Assume getMatchingAction is a method to determine the matching action based on tokens
-                    GameAction action = getMatchingAction(tokens);
-                    if (action == null) {
-                        return "I don't understand what you're trying to do.";
-                    } else {
-                        return performAction(player, action);
-                    }
+                    // Return a default message if no actions or commands matched
+                    return "Command not recognized.";
+
             }
-        }
-        // Return a default message if no actions or commands matched
-        return "Command not recognized.";
     }
 
     /* Convert to lowercase and Strip out punctuation */
