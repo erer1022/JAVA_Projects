@@ -121,30 +121,32 @@ public final class GameServer {
                 .filter(basicCommands::contains)
                 .collect(Collectors.toList());
 
-        // If tokens contains basic command && only one basic command  --> perform basic commands
-        if (foundBasicCommands.size() == 1) {
-            // Execute the basic command if exactly one is found
-            return performBasicCommand(player, tokens, foundBasicCommands.get(0));
-        } else if (foundBasicCommands.size() > 1) {
-            // More than one basic command found
-            return "Ambiguous command: multiple basic commands detected.";
-        }
-
         // else, try to find match action && detect if more than one action in the incoming command
-
         Set<GameAction> potentialActions = getMatchingAction(tokens);
         if (tokens.size() == 1 && potentialActions.size() > 1) {
             return "there is more than one valid action possible - which one do you want to perform ?"; // Handle ambiguity
         }
+
         Set<String> tokenSet = new HashSet<>(tokens);
         // Filter out actions that don't match the remaining tokens
         potentialActions.removeIf(action -> !matchAction(player, tokenSet, action));
 
-        if(potentialActions.size() == 0){
-            return "The action can't be performed, you may act upon a wrong subject.";
-        } else {
-             return performAction(player, potentialActions.iterator().next());
+        // If tokens contains basic command && only one basic command  --> perform basic commands
+        if (foundBasicCommands.size() == 1 && potentialActions.isEmpty()) {
+            // Execute the basic command if exactly one is found
+            return performBasicCommand(player, tokens, foundBasicCommands.get(0));
+        } else if (foundBasicCommands.isEmpty() && potentialActions.size() == 1) {
+            return performAction(player, potentialActions.iterator().next());
+        } else if (foundBasicCommands.isEmpty() && potentialActions.isEmpty()) {
+            return "The action can't be performed, you may act upon wrong subjects or use wrong actions.";
+        }  else if (foundBasicCommands.size() >= 1 && potentialActions.size() >= 1) {
+            return "commands involving more than one activity are NOT be supported";
+        } else if (foundBasicCommands.size() > 1) {
+            // More than one basic command found
+            return "Ambiguous command: multiple basic commands detected.";
         }
+        // Fallback if no clear action or command is found
+        return "Command not recognized or cannot be processed.";
     }
 
     private String performBasicCommand(Player player, List<String> tokens, String basicCommand) {
