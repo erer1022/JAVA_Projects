@@ -194,13 +194,27 @@ public final class GameServer {
             description.append(path.getDescription()).append("\n");
         }
 
+
+        // Only when players are at the same location, and there are more than one, they will receive a description about other players.
         if (players.size() > 1) {
-            description.append("There are multiple players: ");
+            boolean allPlayersAtSameLocation = true;
+
+            // First, check if all players are at the same location
             for (Player player : players) {
-                description.append(player.getName()).append(" ");
+                if (!player.getCurrentLocation().equals(currentLocation)) {
+                    allPlayersAtSameLocation = false;
+                    break;
+                }
+            }
+
+            // If all players are at the same location, build the description
+            if (allPlayersAtSameLocation) {
+                description.append("There are multiple players in ").append(currentLocation.getName()).append(": ");
+                for (Player player : players) {
+                    description.append(player.getName()).append(" ");
+                }
             }
         }
-
         return description.toString();
     }
 
@@ -374,7 +388,7 @@ public final class GameServer {
         if (areAllSubjectsAvailable(currentPlayer, action)) {
             // Consume entities from the player's inventory or current location and move to storeroom
             consumeEntity(currentPlayer, entitiesToConsume);
-            // move the produced entity from storeroom to currentlocation
+            // move the produced entity from storeroom to current location
             produceEntity(currentPlayer, entitiesToProduce);
             if (currentPlayer.getHealth() == 0) {
                 resetPlayer(currentPlayer);
@@ -415,10 +429,27 @@ public final class GameServer {
         Set<String> allEntities = new HashSet<>(playerInventory);
         allEntities.addAll(currentLocationEntities);
 
-        // Check if all required subjects are available
-        List<String> requiredSubjects = action.getSubjects();
+        // Get a copy of required subjects to avoid modifying the original list
+        List<String> requiredSubjects = new ArrayList<>(action.getSubjects());
+
+        // Using an iterator to safely remove items while iterating
+        Iterator<String> it = requiredSubjects.iterator();
+        while (it.hasNext()) {
+            String subject = it.next();
+            // Check if the subject is a location name
+            for (Location location : locations) {
+                if (location.getName().equals(subject) && location.equals(currentLocation)) {
+                    // If the subject is the current location's name and player is at this location, remove it from list
+                    it.remove();
+                    break;  // Exit the loop after removal to prevent unnecessary checks
+                }
+            }
+        }
+
+        // Check if all remaining required subjects are available
         return requiredSubjects.stream().allMatch(allEntities::contains);
     }
+
 
     private List<String> getPlayerInventoryNames(Player currentPlayer) {
         return currentPlayer.getInventory().stream()
@@ -449,9 +480,11 @@ public final class GameServer {
         List<String> playerInventory = getPlayerInventoryNames(currentPlayer);
 
         for (String entity : entitiesToConsume) {
+            // consume entity is in player's inventory
             if (playerInventory.contains(entity)) {
                 consumeFromPlayerInventory(currentPlayer, entity);
             } else {
+                // consume entity is in the current location or consumed entity is a location
                 consumeFromLocation(currentPlayer, currentLocation, entity);
             }
         }
@@ -460,7 +493,9 @@ public final class GameServer {
     private void consumeFromPlayerInventory(Player currentPlayer, String entity) {
         for (Artefact inventory : currentPlayer.getInventory()) {
             if (inventory.getName().equals(entity)) {
+                // move from player's inventory
                 currentPlayer.removeArtefact(inventory);
+                // move the artefact into storeroom
                 storeroom.addArtefact(inventory);
                 break;
             }
@@ -468,6 +503,7 @@ public final class GameServer {
     }
 
     private void consumeFromLocation(Player currentPlayer, Location currentLocation, String entity) {
+        // entity consumed is an artefact
         for (Artefact artefact : currentLocation.getArtefacts()) {
             if (artefact.getName().equals(entity)) {
                 currentLocation.removeArtefact(artefact);
@@ -475,6 +511,7 @@ public final class GameServer {
                 return;
             }
         }
+        // entity consumed is a furniture
         for (Furniture furniture : currentLocation.getFurnitures()) {
             if (furniture.getName().equals(entity)) {
                 currentLocation.removeFurniture(furniture);
@@ -482,6 +519,7 @@ public final class GameServer {
                 return;
             }
         }
+        // entity consumed is a location
         for (Location location : locations) {
             if (location.getName().equals(entity)) {
                 LocationPath pathToRemove = new LocationPath(currentLocation, location);
@@ -489,6 +527,7 @@ public final class GameServer {
                 return;
             }
         }
+        // entity consumed is player's health
         if (entity.equals("health")) {
             currentPlayer.takeDamage(1);
         }
@@ -498,16 +537,19 @@ public final class GameServer {
     private void produceEntity(Player currentPlayer, List<String> entitiesToProduce) {
         Location currentLocation = currentPlayer.getCurrentLocation();
 
+        // produced entitiy is player's health
         for (String entity : entitiesToProduce) {
             if (entity.equals("health")) {
                 currentPlayer.heal(1);
             }
-            produceLocation(currentLocation, entity);
+            // produced entity is a location
+            producedLocation(currentLocation, entity);
+            // or produced entity will move from storeroom to the current location
             moveEntityFromStoreroom(currentLocation, entity);
         }
     }
 
-    private void produceLocation(Location currentLocation, String entity) {
+    private void producedLocation(Location currentLocation, String entity) {
         for (Location location : locations) {
             if (location.getName().equals(entity)) {
                 LocationPath pathToAdd = new LocationPath(currentLocation, location);
