@@ -101,12 +101,18 @@ public final class GameServer {
         // Split the processed command into tokens
         List<String> tokens = Arrays.asList(processedCommand.split("\\s+"));
 
+        // Remove the first token
+        tokens = tokens.subList(1, tokens.size());
+
         if (tokens.contains("and")) {
             return "A single command can only be used to perform a single built-in command or single game action";
         }
 
-        // Remove the first token
-        tokens = tokens.subList(1, tokens.size());
+        // Check no extraneous entities are present
+        if(areThereExtraneousEntities(player, tokens)) {
+            return "The action can't be performed, you may use extraneous entity.";
+        }
+
         // List of basic commands
         List<String> basicCommands = Arrays.asList("look", "inventory", "inv", "get", "drop", "goto", "health");
 
@@ -132,10 +138,10 @@ public final class GameServer {
         }
         Set<String> tokenSet = new HashSet<>(tokens);
         // Filter out actions that don't match the remaining tokens
-        potentialActions.removeIf(action -> !matchAction(tokenSet, action));
+        potentialActions.removeIf(action -> !matchAction(player, tokenSet, action));
 
         if(potentialActions.size() == 0){
-            return "I don't understand what you're trying to do.";
+            return "The action can't be performed, you may act upon a wrong subject.";
         } else {
              return performAction(player, potentialActions.iterator().next());
         }
@@ -355,7 +361,7 @@ public final class GameServer {
     }
 
     // compare client input "tokens" with GameAction
-    private boolean matchAction(Set<String> tokens, GameAction action) {
+    private boolean matchAction(Player player, Set<String> tokens, GameAction action) {
         List<String> required = action.getSubjects();
         // Check if at least one required subject is present in the tokens
         boolean hasRequiredSubject = false;
@@ -370,15 +376,28 @@ public final class GameServer {
             return false; // No required subject present
         }
 
-        /*
-        // Check no extraneous entities are present
-        for (String token : tokens) {
-            if (!required.contains(token) && !action.getTriggers().contains(token) && !action.getConsumed().contains(token) && !action.getProduced().contains(token)) {
-                return false;
-            }
-        }*/
-
         return true; // The action matches
+    }
+
+    private boolean areThereExtraneousEntities(Player player, List<String> tokens) {
+        // Clone the original list to avoid modifying it directly.
+        List<Location> otherLocations = new ArrayList<>(locations);
+        // Remove the currentLocation from the new list.
+        otherLocations.remove(player.getCurrentLocation());
+        Set<String> extraneousEntities = new HashSet<>();
+
+        for (Location otherLocation : otherLocations) {
+            // Get lists of entity names in the current location
+            List<String> otherLocationEntities = getCurrentLocationEntities(otherLocation);
+            extraneousEntities.addAll(otherLocationEntities);
+        }
+
+        for (String token : tokens) {
+            if (extraneousEntities.contains(token)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String performAction(Player currentPlayer, GameAction action) {

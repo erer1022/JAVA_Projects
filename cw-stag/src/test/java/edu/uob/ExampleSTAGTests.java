@@ -76,24 +76,24 @@ class ExampleSTAGTests {
   {
       String response = sendCommandToServer("simon: look");
       response = response.toLowerCase();
-      System.out.println(response);
+      //System.out.println(response);
 
       // Composite Commands
       String response4 = sendCommandToServer("simon: get axe and look");
-      System.out.println("response4: " + response4);
+      //System.out.println("response4: " + response4);
 
       String response1 = sendCommandToServer("simon: axe get");
-      System.out.println("response1: " + response1);
+      //System.out.println("response1: " + response1);
       String response2 = sendCommandToServer("simon: open");
-      System.out.println("response2: " + response2);
-
-      sendCommandToServer("simon: get potion");
+      //System.out.println("response2: " + response2);
 
       //TODO
-      String response3 = sendCommandToServer("simon: drop potion and key");
-      System.out.println("response3: " + response3);
+      //String response3 = sendCommandToServer("simon: drop potion and key");
+      //System.out.println("response3: " + response3);
 
-      //TODO get axe and cut down the tree
+      // Extraneous entity and composite command
+      String response5 = sendCommandToServer("simon: get potion, cut down the tree");
+      System.out.println("response5: " + response5);
 
       // Decorated Commands
       //String response5 = sendCommandToServer("simon: please chop the tree using the axe");
