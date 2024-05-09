@@ -20,24 +20,6 @@
 
     <action>
         <triggers>
-            <keyphrase>open</keyphrase>
-            <keyphrase>miko</keyphrase>
-        </triggers>
-        <subjects>
-            <entity>river</entity>
-            <entity>bird</entity>
-        </subjects>
-        <consumed>
-            <entity>elephant</entity>
-        </consumed>
-        <produced>
-            <entity>cat</entity>
-        </produced>
-        <narration>You meet a cat</narration>
-    </action>
-
-    <action>
-        <triggers>
             <keyphrase>chop</keyphrase>
             <keyphrase>cut</keyphrase>
             <keyphrase>cutdown</keyphrase>

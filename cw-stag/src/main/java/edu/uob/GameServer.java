@@ -106,8 +106,9 @@ public final class GameServer {
         if (tokens.contains("and")) {
             return "A single command can only be used to perform a single built-in command or single game action";
         }
+
         // Check no extraneous entities are present
-        if(areThereExtraneousEntities(player, tokens)) {
+        if(findExtraneousEntities(player, tokens)) {
             return "The action can't be performed, you may use extraneous entity.";
         }
 
@@ -389,7 +390,7 @@ public final class GameServer {
         return true; // The action matches
     }
 
-    private boolean areThereExtraneousEntities(Player player, List<String> tokens) {
+    private boolean findExtraneousEntities(Player player, List<String> tokens) {
         // Clone the original list to avoid modifying it directly.
         List<Location> otherLocations = new ArrayList<>(locations);
         // Remove the currentLocation from the new list.
@@ -413,12 +414,20 @@ public final class GameServer {
     private String performAction(Player currentPlayer, GameAction action) {
         List<String> entitiesToConsume = action.getConsumed();
         List<String> entitiesToProduce = action.getProduced();
+        List<String> currentLocationEntities = getCurrentLocationEntities(currentPlayer.getCurrentLocation());
 
         if (areAllSubjectsAvailable(currentPlayer, action)) {
-            // Consume entities from the player's inventory or current location and move to storeroom
+            // Consume entities from the player's inventory or any location and move to storeroom
             consumeEntity(currentPlayer, entitiesToConsume);
-            // move the produced entity from storeroom to current location
+
+            for (String entity : entitiesToProduce) {
+                if (currentLocationEntities.contains(entity)) {
+                    return entity + "has already been produced.";
+                }
+            }
+            // move the produced entity from other locations to current location
             produceEntity(currentPlayer, entitiesToProduce);
+
             if (currentPlayer.getHealth() == 0) {
                 resetPlayer(currentPlayer);
                 // Return narration or feedback to the user
@@ -537,21 +546,38 @@ public final class GameServer {
 
     private void consumeFromLocation(Player currentPlayer, Location currentLocation, String entity) {
         // entity consumed is an artefact
-        for (Artefact artefact : currentLocation.getArtefacts()) {
-            if (artefact.getName().equals(entity)) {
-                currentLocation.removeArtefact(artefact);
-                storeroom.addArtefact(artefact);
-                return;
+        for (Location location : locations) {
+            for (Artefact artefact : location.getArtefacts()) {
+                if (artefact.getName().equals(entity)) {
+                    location.removeArtefact(artefact);
+                    storeroom.addArtefact(artefact);
+                    return;
+                }
             }
         }
+
         // entity consumed is a furniture
-        for (Furniture furniture : currentLocation.getFurnitures()) {
-            if (furniture.getName().equals(entity)) {
-                currentLocation.removeFurniture(furniture);
-                storeroom.addFurniture(furniture);
-                return;
+        for (Location location : locations) {
+            for (Furniture furniture : location.getFurnitures()) {
+                if (furniture.getName().equals(entity)) {
+                    location.removeFurniture(furniture);
+                    storeroom.addFurniture(furniture);
+                    return;
+                }
             }
         }
+
+        //entity consumed is a character
+        for (Location location : locations) {
+            for (Character character : location.getCharacters()) {
+                if (character.getName().equals(entity)) {
+                    location.removeCharacter(character);
+                    storeroom.addCharacter(character);
+                    return;
+                }
+            }
+        }
+
         // entity consumed is a location
         for (Location location : locations) {
             if (location.getName().equals(entity)) {
@@ -578,7 +604,7 @@ public final class GameServer {
             // produced entity is a location
             producedLocation(currentLocation, entity);
             // or produced entity will move from storeroom to the current location
-            moveEntityFromStoreroom(currentLocation, entity);
+            moveEntityFromOtherLocations(currentLocation, entity);
         }
     }
 
@@ -592,28 +618,35 @@ public final class GameServer {
         }
     }
 
-    private void moveEntityFromStoreroom(Location currentLocation, String entity) {
-        for (Artefact artefact : storeroom.getArtefacts()) {
-            if (artefact.getName().equals(entity)) {
-                storeroom.removeArtefact(artefact);
-                currentLocation.addArtefact(artefact);
-                return;
+    private void moveEntityFromOtherLocations(Location currentLocation, String entity) {
+        // if the produced entity is an artefact
+        for (Location location : locations) {
+            for (Artefact artefact : location.getArtefacts()) {
+                if (artefact.getName().equals(entity)) {
+                    location.removeArtefact(artefact);
+                    currentLocation.addArtefact(artefact);
+                    return;
+                }
             }
         }
-
-        for (Furniture furniture : storeroom.getFurnitures()) {
-            if (furniture.getName().equals(entity)) {
-                storeroom.removeFurniture(furniture);
-                currentLocation.addFurniture(furniture);
-                return;
+        // if the produced entity is a furniture
+        for (Location location : locations) {
+            for (Furniture furniture : location.getFurnitures()) {
+                if (furniture.getName().equals(entity)) {
+                    location.removeFurniture(furniture);
+                    currentLocation.addFurniture(furniture);
+                    return;
+                }
             }
         }
-
-        for (Character character : storeroom.getCharacters()) {
-            if (character.getName().equals(entity)) {
-                storeroom.removeCharacter(character);
-                currentLocation.addCharacter(character);
-                return;
+        // if the produced entity is a character
+        for (Location location : locations) {
+            for (Character character : location.getCharacters()) {
+                if (character.getName().equals(entity)) {
+                    location.removeCharacter(character);
+                    currentLocation.addCharacter(character);
+                    return;
+                }
             }
         }
     }
