@@ -4,6 +4,23 @@ This repository contains two Java-based projects: a relational database server a
 
 ---
 
+# Table of Contents
+
+- [Combined Assignment Documentation](#combined-assignment-documentation)
+- [Table of Contents](#table-of-contents)
+  - [Database Server Assignment](#database-server-assignment)
+    - [Project Overview](#project-overview)
+    - [Key Features](#key-features)
+    - [Setup and Execution](#setup-and-execution)
+      - [Prerequisites](#prerequisites)
+      - [Build and Run](#build-and-run)
+      - [Example Commands](#example-commands)
+  - [Simple Text Adventure Game (STAG) Assignment](#simple-text-adventure-game-stag-assignment)
+    - [Project Overview](#project-overview-1)
+    - [Key Features](#key-features-1)
+    - [Setup and Execution](#setup-and-execution-1)
+      - [Prerequisites](#prerequisites-1)
+      - [Example Commands](#example-commands-1)
 
 ## Database Server Assignment
 
@@ -62,7 +79,7 @@ Navigate to the project directory and use Maven to compile and execute the serve
 mvnw clean compile exec:java@server
 ```
 
-Example Commands
+#### Example Commands
 Create a database:
 ```bash
 CREATE DATABASE my_database;
@@ -156,7 +173,7 @@ To connect a client:
 mvnw exec:java@client -Dexec.args="player_name"
 ```
 
-Example Commands
+#### Example Commands
 View inventory:
 ```bash
 inventory
